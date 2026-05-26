@@ -3,14 +3,33 @@
 
 <head>
 	<meta charset="UTF-8" />
-	<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>tauri-app</title>
+	<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="/src/style.css">
+	<title>Audiostar</title>
+	<!-- <script type="module" src="/src/main.ts"></script> -->
 </head>
 
 <body>
-	<div id="app"></div>
-	<script type="module" src="/src/main.ts"></script>
+	<div id="header">
+		<div id="header-left">
+			<img src="/src/assets/icon2.png" alt="icon" width="64" height="64">
+			<div id="title-text">Audiostar</div>
+		</div>
+		<div id="header-right">
+			<a href="#" id="settingsButton">Settings</a>
+			<a href="#" id="aboutButton">About</a>
+			<a href="#" id="helpButton">Help</a>
+		</div>
+	</div>
+
+	<div id="container">
+		<p>Select a directory to view its contents:</p>
+		<div id="currentPath"></div>
+		<div id="directoryFiles"></div>
+		<div id="musicFiles"></div>
+	</div>
+
 </body>
 
 </html>
