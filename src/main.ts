@@ -19,6 +19,8 @@ const musicFilesDiv = document.getElementById("musicFiles") as HTMLDivElement;
 const backIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/></svg> ';
 const homeIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-house" viewBox="0 0 16 16"><path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293zM13 7.207V13.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V7.207l5-5z"/></svg> ';
 const favoriteIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-heart" viewBox="0 0 16 16"><path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143q.09.083.176.171a3 3 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15"/></svg> ';
+const starEmptyIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star" viewBox="0 0 16 16"><path d="M2.866 14.85c-.078.444.36.791.746.593l4.39-2.256 4.389 2.256c.386.198.824-.149.746-.592l-.83-4.73 3.522-3.356c.33-.314.16-.888-.282-.95l-4.898-.696L8.465.792a.513.513 0 0 0-.927 0L5.354 5.12l-4.898.696c-.441.062-.612.636-.283.95l3.523 3.356-.83 4.73zm4.905-2.767-3.686 1.894.694-3.957a.56.56 0 0 0-.163-.505L1.71 6.745l4.052-.576a.53.53 0 0 0 .393-.288L8 2.223l1.847 3.658a.53.53 0 0 0 .393.288l4.052.575-2.906 2.77a.56.56 0 0 0-.163.506l.694 3.957-3.686-1.894a.5.5 0 0 0-.461 0z" /></svg>'
+const starFilledIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill" viewBox="0 0 16 16"><path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z" /></svg>'
 
 let homeDirectory = "";
 let pathSeparator = "/";
@@ -286,6 +288,7 @@ async function listMusicFiles() {
 		return;
 	}
 
+	musicFilesDiv.style.fontStyle = "normal";
 	const table = document.createElement("table") as HTMLTableElement;
 	const thead = document.createElement("thead") as HTMLTableSectionElement;
 	const headerRow = document.createElement("tr") as HTMLTableRowElement;
@@ -317,12 +320,42 @@ async function listMusicFiles() {
 		playCell.dataset.filePath = filePath;
 		ratingCell.className = "rating-cell";
 
-		ratingCell.textContent = rating !== false ? `Rating: ${rating}` : "No rating";
-
+		await ratingFormatter(ratingCell, rating);
 		row.appendChild(playCell);
 		row.appendChild(ratingCell);
 		tbody.appendChild(row);
 	}
+}
+
+//=============================================================================
+// Rating formatter to display star icons based on the rating value
+//=============================================================================
+async function ratingFormatter(cell: HTMLTableCellElement, rating: number | false) {
+	cell.textContent = "";
+	
+	const wrapper = document.createElement("div");
+	wrapper.className = "d-flex align-items-center gap-1";
+
+	for (let starNumber = 1; starNumber <= 5; starNumber++) {
+		const starButton = document.createElement("button");
+		const starIcon = document.createElement("i");
+		const isFilled = rating !== false && starNumber <= rating;
+
+		starButton.type = "button";
+		starButton.className = "btn btn-link p-0 border-0";
+		starButton.style.color = "#d4af37";
+		starButton.style.backgroundColor = "transparent";
+		starButton.style.border = "none";
+		starButton.title = `Rate ${starNumber}`;
+		starButton.setAttribute("aria-label", `Rate ${starNumber} star${starNumber === 1 ? "" : "s"}`);
+
+		starIcon.innerHTML = isFilled ? starFilledIconSvg : starEmptyIconSvg;
+		starButton.appendChild(starIcon);
+
+		wrapper.appendChild(starButton);
+	}
+
+	cell.appendChild(wrapper);
 }
 
 //=============================================================================
