@@ -1,75 +1,82 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --accent: #aa3bff;
+	--text: #6b6375;
+	--text-h: #08060d;
+	--bg: #fff;
+	--border: #e5e4e7;
+	--accent: #aa3bff;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+	--sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+	--heading: system-ui, 'Segoe UI', Roboto, sans-serif;
 
-  font: 18px/145% var(--sans);
-  color: var(--text);
-  background: var(--bg);
-  color-scheme: light dark;
-  -webkit-font-smoothing: antialiased;
+	font: 18px/145% var(--sans);
+	color: var(--text);
+	background: var(--bg);
+	color-scheme: light dark;
+	-webkit-font-smoothing: antialiased;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --accent: #c084fc;
-  }
+	:root {
+		--text: #9ca3af;
+		--text-h: #f3f4f6;
+		--bg: #16171d;
+		--border: #2e303a;
+		--accent: #c084fc;
+	}
 }
 
-*, *::before, *::after {
-  box-sizing: border-box;
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
 }
 
 body {
-  margin: 0;
+	margin: 0;
 }
 
 #header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-  height: 72px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 24px;
+	height: 72px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg);
 }
 
 #header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
 }
 
 #title-text {
-  font-family: var(--heading);
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--text-h);
-  letter-spacing: -0.3px;
+	font-family: var(--heading);
+	font-size: 22px;
+	font-weight: 600;
+	color: var(--text-h);
+	letter-spacing: -0.3px;
 }
 
 #header-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
+	display: flex;
+	align-items: center;
+	gap: 20px;
 }
 
 #header-right a {
-  color: var(--text);
-  text-decoration: none;
-  font-size: 15px;
-  transition: color 0.2s;
+	color: var(--text);
+	text-decoration: none;
+	font-size: 15px;
+	transition: color 0.2s;
 }
 
 #header-right a:hover {
-  color: var(--accent);
+	color: var(--accent);
+}
+
+#directoryFiles ul{
+	list-style-type: none;
+	columns: 200px;
 }

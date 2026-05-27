@@ -1,25 +1,38 @@
 [package]
-name = "app"
+name = "audiostar"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
-license = ""
-repository = ""
+description = "A Audio File Rating Tool built with Tauri and Rust"
+authors = ["Chris Strawser"]
 edition = "2021"
-rust-version = "1.77.2"
+build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.release]
+codegen-units = 1 # Allows LLVM to perform better optimization.
+lto = true        # Enables link-time-optimizations.
+opt-level = 3   # Prioritizes small binary size. Use `3` if you prefer speed.
+panic = "abort"   # Higher performance by disabling panic handlers.
+strip = true      # Ensures debug symbols are removed.
+debug = false     # Don't include debug symbols in release builds.
 
 [lib]
-name = "app_lib"
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "audiostar_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.6.2", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-log = "0.4"
-tauri = { version = "2.11.2", features = [] }
-tauri-plugin-log = "2"
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs-next = "2"
+rodio = { version = "0.21", features = ["playback", "symphonia-all"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+symphonia = { version = "0.5", features = ["all"] }
+xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
+tauri-plugin-dialog = "2"
