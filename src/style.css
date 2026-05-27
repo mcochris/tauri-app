@@ -76,6 +76,10 @@ body {
 	color: var(--accent);
 }
 
+#container {
+	padding: 0 24px;
+}
+
 #directoryFiles ul{
 	list-style-type: none;
 	columns: 200px;
