@@ -8,6 +8,10 @@ import {
 
 // import Swal from 'sweetalert2';
 
+document.getElementById("header-right")?.addEventListener("click", (event) => {
+	event.preventDefault();
+});
+
 const directoryDiv = document.getElementById("directoryFiles") as HTMLDivElement;
 const currentPathDiv = document.getElementById("currentPath") as HTMLDivElement;
 const musicFilesDiv = document.getElementById("musicFiles") as HTMLDivElement;
