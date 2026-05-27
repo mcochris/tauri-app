@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.28.0",
+    "sweetalert2": "^11.26.25"
   }
 }

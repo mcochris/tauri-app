@@ -6,6 +6,7 @@ import {
 	getCurrentWindow,
 } from "@tauri-apps/api/window";
 
+// import Swal from 'sweetalert2';
 
 const directoryDiv = document.getElementById("directoryFiles") as HTMLDivElement;
 const currentPathDiv = document.getElementById("currentPath") as HTMLDivElement;
