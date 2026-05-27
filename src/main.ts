@@ -11,9 +11,11 @@ import {
 const directoryDiv = document.getElementById("directoryFiles") as HTMLDivElement;
 const currentPathDiv = document.getElementById("currentPath") as HTMLDivElement;
 const musicFilesDiv = document.getElementById("musicFiles") as HTMLDivElement;
+
 const backIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/></svg> ';
 const homeIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-house" viewBox="0 0 16 16"><path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293zM13 7.207V13.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V7.207l5-5z"/></svg> ';
 const favoriteIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-heart" viewBox="0 0 16 16"><path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143q.09.083.176.171a3 3 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15"/></svg> ';
+
 let homeDirectory = "";
 let pathSeparator = "/";
 
@@ -245,7 +247,7 @@ async function listDirectories() {
 
 	directoryDiv.appendChild(ul);
 
-	// await listMusicFiles();
+	await listMusicFiles();
 }
 
 //=============================================================================
@@ -262,6 +264,62 @@ async function initializeApp() {
 }
 
 initializeApp();
+
+//=============================================================================
+// List music files in the current path
+// This function is called after listing directories to show music files in the same path
+//=============================================================================
+async function listMusicFiles() {
+	const musicFiles = await invoke("get_music_files", { "path": path }) as string[];
+
+	musicFilesDiv.textContent = "";
+
+	console.log("Music files in current directory:", musicFiles.length);
+
+	if (musicFiles.length === 0) {
+		musicFilesDiv.textContent = "No music files in this directory.";
+		musicFilesDiv.style.fontStyle = "italic";
+		return;
+	}
+
+	const table = document.createElement("table") as HTMLTableElement;
+	const thead = document.createElement("thead") as HTMLTableSectionElement;
+	const headerRow = document.createElement("tr") as HTMLTableRowElement;
+	const playHeader = document.createElement("th") as HTMLTableCellElement;
+	const ratingHeader = document.createElement("th") as HTMLTableCellElement;
+		
+	playHeader.textContent = "File (click to play/stop)";
+	ratingHeader.textContent = "Rating";
+	headerRow.appendChild(playHeader);
+	headerRow.appendChild(ratingHeader);
+	thead.appendChild(headerRow);
+	table.appendChild(thead);
+
+	const tbody = document.createElement("tbody") as HTMLTableSectionElement;
+	table.appendChild(tbody);
+	musicFilesDiv.appendChild(table);
+
+	for (const filePath of musicFiles) {
+		const fileName = filePath.split(pathSeparator).pop() || filePath;
+		const rating = await invoke<number | false>("get_rating", { "pathname": filePath });
+
+		const row = document.createElement("tr") as HTMLTableRowElement;
+		const playCell = document.createElement("td") as HTMLTableCellElement;
+		const ratingCell = document.createElement("td") as HTMLTableCellElement;
+
+		playCell.textContent = fileName;
+		playCell.className = "play-button";
+		playCell.dataset.action = "play-toggle";
+		playCell.dataset.filePath = filePath;
+		ratingCell.className = "rating-cell";
+
+		ratingCell.textContent = rating !== false ? `Rating: ${rating}` : "No rating";
+
+		row.appendChild(playCell);
+		row.appendChild(ratingCell);
+		tbody.appendChild(row);
+	}
+}
 
 //=============================================================================
 // List music files in the current path
