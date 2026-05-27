@@ -27,7 +27,7 @@ let homeDirectory = "";
 let pathSeparator = "/";
 
 let path = "";
-// let currentPlayingPath: string | null = null;
+let currentPlayingPath: string | null = null;
 
 function updateCurrentPathDisplay() {
 	const favDir = localStorage.getItem("favoriteDirectory") || "";
@@ -110,25 +110,24 @@ directoryDiv.addEventListener("click", async (event) => {
 
 musicFilesDiv.addEventListener("click", async (event) => {
 	const target = event.target as HTMLElement;
-	const playButton = target.closest("button[data-action='play-toggle']") as HTMLButtonElement | null;
+	const playCell = target.closest("[data-action='play-toggle']") as HTMLElement | null;
 
-	if (playButton && musicFilesDiv.contains(playButton)) {
-		const filePath = playButton.dataset.filePath;
+	if (playCell && musicFilesDiv.contains(playCell)) {
+		const filePath = playCell.dataset.filePath;
 
 		if (!filePath) {
 			return;
 		}
 
-		if (playButton.textContent === "Play") {
-			document.querySelectorAll(".play-button").forEach((button) => {
-				(button as HTMLButtonElement).textContent = "Play";
-			});
-
-			await playMusic(filePath);
-			playButton.textContent = "Stop";
-		} else {
+		if (currentPlayingPath === filePath) {
 			await stopMusic();
-			playButton.textContent = "Play";
+			currentPlayingPath = null;
+			document.querySelectorAll(".play-button.playing").forEach((el) => el.classList.remove("playing"));
+		} else {
+			document.querySelectorAll(".play-button.playing").forEach((el) => el.classList.remove("playing"));
+			await playMusic(filePath);
+			currentPlayingPath = filePath;
+			playCell.classList.add("playing");
 		}
 
 		return;
@@ -210,6 +209,11 @@ async function listDirectories() {
 	// Clear previous directory list
 	directoryDiv.innerHTML = "";
 	updateCurrentPathDisplay();
+
+	if (currentPlayingPath) {
+		await stopMusic();
+		currentPlayingPath = null;
+	}
 
 	const dirs = await invoke("list_directories", { path }) as string[];
 	const favDir = localStorage.getItem("favoriteDirectory") || "";
@@ -345,7 +349,7 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 		const isFilled = rating !== false && starNumber <= rating;
 
 		starButton.type = "button";
-		starButton.style.color = "#d4af37";
+		starButton.style.color = "gold";
 		starButton.style.backgroundColor = "transparent";
 		starButton.style.border = "none";
 		starButton.title = `Rate ${starNumber}`;
@@ -357,12 +361,11 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 		wrapper.appendChild(starButton);
 	}
 
-	if (rating === false) {
+	if (rating !== false) {
 		const clearButton = document.createElement("button");
 		const clearIcon = document.createElement("i");
 
 		clearButton.type = "button";
-		// clearButton.style.color = "currentColor";
 		clearButton.style.color = "maroon";
 		clearButton.style.backgroundColor = "transparent";
 		clearButton.style.border = "none";
@@ -382,7 +385,6 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 
 		wrapper.appendChild(clearButton);
 	}
-
 
 	cell.appendChild(wrapper);
 }

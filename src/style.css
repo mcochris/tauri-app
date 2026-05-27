@@ -84,3 +84,16 @@ body {
 	list-style-type: none;
 	columns: 200px;
 }
+
+.play-button {
+cursor: pointer;
+}
+
+.play-button:hover {
+text-decoration: underline;
+}
+
+.play-button.playing {
+font-weight: bold;
+color: var(--accent);
+}
