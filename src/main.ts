@@ -403,6 +403,11 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 			await ratingFormatter(filePath, cell, starNumber);
 		});
 		starButton.addEventListener("mouseenter", () => updateStarIcons(starNumber));
+		starButton.addEventListener("mouseleave", (e) => {
+			if (!wrapper.contains(e.relatedTarget as Node)) {
+				updateStarIcons(null);
+			}
+		});
 
 		starButtons.push(starButton);
 		wrapper.appendChild(starButton);
