@@ -75,7 +75,7 @@ function appendNavItem(
 }
 
 directoryDiv.addEventListener("click", async (event) => {
-	const target = (event.target as HTMLElement).closest("a[data-action]") as HTMLAnchorElement | null;
+	const target = (event.target as HTMLElement).closest("[data-action]") as HTMLElement | null;
 
 	if (!target || !directoryDiv.contains(target)) {
 		return;
@@ -249,10 +249,14 @@ async function listDirectories() {
 
 	dirs.forEach((dir: string) => {
 		const li = document.createElement("li") as HTMLLIElement;
-		const link = createActionLink(dir, "open-directory", dir);
+		const span = document.createElement("span") as HTMLSpanElement;
 
-		// Display text
-		li.appendChild(link);
+		span.textContent = dir;
+		span.dataset.action = "open-directory";
+		span.dataset.value = dir;
+		span.className = "directory-name";
+
+		li.appendChild(span);
 		ul.appendChild(li);
 	});
 

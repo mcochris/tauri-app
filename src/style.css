@@ -85,6 +85,14 @@ body {
 	columns: 200px;
 }
 
+.directory-name {
+cursor: pointer;
+}
+
+.directory-name:hover {
+text-decoration: underline;
+}
+
 .play-button {
 cursor: pointer;
 }
