@@ -414,9 +414,7 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 	cell.textContent = "";
 
 	const wrapper = document.createElement("div");
-	wrapper.style.display = "flex";
-	wrapper.style.gap = "4px";
-	wrapper.style.alignItems = "center";
+	wrapper.className = "rating-cell-wrapper";
 
 	const starButtons: HTMLButtonElement[] = [];
 
@@ -457,9 +455,7 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 		const isFilled = rating !== false && starNumber <= rating;
 
 		starButton.type = "button";
-		starButton.style.color = "gold";
-		starButton.style.backgroundColor = "transparent";
-		starButton.style.border = "none";
+		starButton.className = "star-button";
 		starButton.title = `Rate ${starNumber}`;
 		starButton.setAttribute("aria-label", `Rate ${starNumber} star${starNumber === 1 ? "" : "s"}`);
 
@@ -488,9 +484,7 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 		const clearIcon = document.createElement("i");
 
 		clearButton.type = "button";
-		clearButton.style.color = "maroon";
-		clearButton.style.backgroundColor = "transparent";
-		clearButton.style.border = "none";
+		clearButton.className = "clear-rating-button";
 		clearButton.dataset.action = "clear-rating";
 		clearButton.dataset.filePath = filePath;
 		clearButton.title = "Clear rating";

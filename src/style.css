@@ -4,6 +4,8 @@
 	--bg: whitesmoke;
 	--border: #e5e4e7;
 	--accent: #aa3bff;
+	--star: #d97706;
+	--star-clear: #b91c1c;
 
 	--sans: system-ui, 'Segoe UI', Roboto, sans-serif;
 	--heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -22,6 +24,8 @@
 		--bg: #16171d;
 		--border: #2e303a;
 		--accent: #c084fc;
+		--star: #fbbf24;
+		--star-clear: #f87171;
 	}
 }
 
@@ -129,4 +133,66 @@ text-decoration: underline;
 .play-button.playing {
 font-weight: bold;
 color: var(--accent);
+}
+
+.rating-cell-wrapper {
+	display: flex;
+	gap: 2px;
+	align-items: center;
+}
+
+.star-button {
+	color: var(--star);
+	background: transparent;
+	border: none;
+	padding: 2px;
+	cursor: pointer;
+	line-height: 1;
+	border-radius: 3px;
+	transition: opacity 0.15s, transform 0.1s;
+}
+
+.star-button:hover {
+	opacity: 0.8;
+	transform: scale(1.2);
+}
+
+.clear-rating-button {
+	color: var(--star-clear);
+	background: transparent;
+	border: none;
+	padding: 2px;
+	margin-left: 4px;
+	cursor: pointer;
+	line-height: 1;
+	border-radius: 3px;
+	opacity: 0.65;
+	transition: opacity 0.15s, transform 0.1s;
+}
+
+.clear-rating-button:hover {
+	opacity: 1;
+	transform: scale(1.15);
+}
+
+#musicFiles table {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+#musicFiles th,
+#musicFiles td {
+	padding: 8px 14px;
+	border: 1px solid var(--border);
+}
+
+#musicFiles th {
+	text-align: left;
+	color: var(--text-h);
+	font-weight: 600;
+	background: var(--border);
+}
+
+#musicFiles {
+	margin-bottom: 32px;
 }
