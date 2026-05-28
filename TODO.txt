@@ -4,7 +4,7 @@
 
 - Add spreadsheet function
 
-- Fix table headers when in dark mode
+- Fix table headers when in dark mode (Done)
 
 - Make "No music files..." italic (Done)
 
@@ -31,4 +31,5 @@
 - test moving/copying/renaming a file to see if it's rating sticks
 
 - test changing a file's metadata to see if it's rating sticks
+
 
