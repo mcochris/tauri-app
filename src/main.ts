@@ -384,6 +384,27 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 		});
 	};
 
+	let docMoveHandler: ((e: MouseEvent) => void) | null = null;
+
+	const stopTrackingLeave = () => {
+		if (docMoveHandler) {
+			document.removeEventListener("mousemove", docMoveHandler);
+			docMoveHandler = null;
+		}
+	};
+
+	const startTrackingLeave = () => {
+		if (docMoveHandler) return;
+		docMoveHandler = (e: MouseEvent) => {
+			const rect = wrapper.getBoundingClientRect();
+			if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+				updateStarIcons(null);
+				stopTrackingLeave();
+			}
+		};
+		document.addEventListener("mousemove", docMoveHandler);
+	};
+
 	for (let starNumber = 1; starNumber <= 5; starNumber++) {
 		const starButton = document.createElement("button");
 		const starIcon = document.createElement("i");
@@ -402,18 +423,19 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 			await rateMusic(filePath, starNumber);
 			await ratingFormatter(filePath, cell, starNumber);
 		});
-		starButton.addEventListener("mouseenter", () => updateStarIcons(starNumber));
-		starButton.addEventListener("mouseleave", (e) => {
-			if (!wrapper.contains(e.relatedTarget as Node)) {
-				updateStarIcons(null);
-			}
+		starButton.addEventListener("mouseenter", () => {
+			updateStarIcons(starNumber);
+			startTrackingLeave();
 		});
 
 		starButtons.push(starButton);
 		wrapper.appendChild(starButton);
 	}
 
-	wrapper.addEventListener("mouseleave", () => updateStarIcons(null));
+	wrapper.addEventListener("mouseleave", () => {
+		updateStarIcons(null);
+		stopTrackingLeave();
+	});
 
 	if (rating !== false) {
 		const clearButton = document.createElement("button");
