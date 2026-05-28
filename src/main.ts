@@ -28,6 +28,7 @@ let pathSeparator = "/";
 
 let path = "";
 let currentPlayingPath: string | null = null;
+let directoryToken = 0; // incremented on each navigation to cancel stale hash lookups
 
 function updateCurrentPathDisplay() {
 	const favDir = localStorage.getItem("favoriteDirectory") || "";
@@ -312,6 +313,7 @@ initializeApp();
 // This function is called after listing directories to show music files in the same path
 //=============================================================================
 async function listMusicFiles() {
+	const token = ++directoryToken;
 	const musicFiles = await invoke("get_music_files", { "path": path }) as string[];
 
 	musicFilesDiv.textContent = "";
@@ -338,11 +340,13 @@ async function listMusicFiles() {
 
 	const tbody = document.createElement("tbody") as HTMLTableSectionElement;
 	table.appendChild(tbody);
-	musicFilesDiv.appendChild(table);
+
+	// Build the table skeleton immediately — one row per file with no rating
+	// displayed yet, so the user sees the full file list without any delay.
+	const ratingCells = new Map<string, HTMLTableCellElement>();
 
 	for (const filePath of musicFiles) {
 		const fileName = (filePath.split(pathSeparator).pop() || filePath).replace(/\.[^.]+$/, "");
-		const rating = await invoke<number | false>("get_rating", { "pathname": filePath });
 
 		const row = document.createElement("tr") as HTMLTableRowElement;
 		const playCell = document.createElement("td") as HTMLTableCellElement;
@@ -354,11 +358,53 @@ async function listMusicFiles() {
 		playCell.dataset.filePath = filePath;
 		ratingCell.className = "rating-cell";
 
-		await ratingFormatter(filePath, ratingCell, rating);
 		row.appendChild(playCell);
 		row.appendChild(ratingCell);
 		tbody.appendChild(row);
+		ratingCells.set(filePath, ratingCell);
 	}
+
+	// Append the complete table in one DOM operation so the browser paints
+	// all rows at once before any async work begins.
+	musicFilesDiv.appendChild(table);
+
+	// Fetch all pathname-based ratings in a single IPC call.
+	if (directoryToken !== token) return;
+	const ratingsMap = await invoke<Record<string, number | null>>("get_ratings_batch", { "pathnames": musicFiles });
+	if (directoryToken !== token) return;
+
+	// Files with no pathname match queued for background hash lookup
+	const hashLookupQueue: Array<{ filePath: string; ratingCell: HTMLTableCellElement }> = [];
+
+	for (const filePath of musicFiles) {
+		const ratingCell = ratingCells.get(filePath)!;
+		const rawRating = ratingsMap[filePath];
+		const rating: number | false = typeof rawRating === "number" ? rawRating : false;
+
+		await ratingFormatter(filePath, ratingCell, rating);
+
+		if (rating === false) {
+			hashLookupQueue.push({ filePath, ratingCell });
+		}
+	}
+
+	// Background hash-based lookup for unrated files. Processed one at a time
+	// so hash computation never saturates Tauri's thread pool. The token check
+	// aborts the loop as soon as the user navigates to another directory.
+	(async () => {
+		for (const { filePath, ratingCell } of hashLookupQueue) {
+			if (directoryToken !== token) break;
+			try {
+				const hashRating = await invoke<number | false>("get_rating_by_audio_hash", { "pathname": filePath });
+				if (directoryToken !== token) break;
+				if (hashRating !== false && document.contains(ratingCell)) {
+					await ratingFormatter(filePath, ratingCell, hashRating);
+				}
+			} catch (e) {
+				console.error(e);
+			}
+		}
+	})();
 }
 
 //=============================================================================

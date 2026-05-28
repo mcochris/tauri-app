@@ -1,22 +1,15 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink};
 use rusqlite::{params, Connection, OptionalExtension};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::fs::File;
 use std::hash::Hasher;
-use std::io::BufReader;
+use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
-use symphonia::core::audio::SampleBuffer;
-use symphonia::core::codecs::DecoderOptions;
-use symphonia::core::errors::Error as SymphoniaError;
-use symphonia::core::formats::FormatOptions;
-use symphonia::core::io::MediaSourceStream;
-use symphonia::core::meta::MetadataOptions;
-use symphonia::core::probe::Hint;
 use tauri::Manager;
 
 struct AudioState {
@@ -34,12 +27,18 @@ unsafe impl Sync for AudioState {}
 const RATINGS_DATABASE_NAME: &str = "audiostar.sqlite3";
 const RATINGS_SCHEMA: &str = r#"
     CREATE TABLE IF NOT EXISTS ratings (
-        id INTEGER NOT NULL UNIQUE,
+        audio_hash TEXT NOT NULL PRIMARY KEY,
         pathname TEXT NOT NULL UNIQUE,
-        audio_hash TEXT,
         rating INTEGER,
-        rated_timestamp INTEGER NOT NULL,
-        PRIMARY KEY(id AUTOINCREMENT)
+        rated_timestamp INTEGER NOT NULL
+    )
+"#;
+const HASH_CACHE_SCHEMA: &str = r#"
+    CREATE TABLE IF NOT EXISTS hash_cache (
+        pathname TEXT NOT NULL PRIMARY KEY,
+        file_size INTEGER NOT NULL,
+        mtime_ms INTEGER NOT NULL,
+        audio_hash TEXT NOT NULL
     )
 "#;
 
@@ -64,6 +63,9 @@ fn ensure_ratings_database(app: &tauri::AppHandle) -> Result<(), String> {
     connection
         .execute(RATINGS_SCHEMA, [])
         .map_err(|e| e.to_string())?;
+    connection
+        .execute(HASH_CACHE_SCHEMA, [])
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -83,6 +85,9 @@ fn open_ratings_database(app: &tauri::AppHandle) -> Result<Connection, String> {
 
     connection
         .execute(RATINGS_SCHEMA, [])
+        .map_err(|e| e.to_string())?;
+    connection
+        .execute(HASH_CACHE_SCHEMA, [])
         .map_err(|e| e.to_string())?;
 
     Ok(connection)
@@ -178,71 +183,145 @@ fn get_rating(pathname: String, app: tauri::AppHandle) -> Result<Value, String> 
     }
 }
 
+#[tauri::command(rename_all = "snake_case")]
 //=============================================================================
-// Populate a rating row's audio hash in the background
+// Batch version of get_rating: accepts a list of pathnames and returns a JSON
+// object mapping each pathname to its rating (integer) or null (no record).
+// Opens the database only once, avoiding the per-file IPC + connection cost.
 //=============================================================================
-fn populate_audio_hash_in_background(app: tauri::AppHandle, pathname: String) {
-    std::thread::spawn(move || {
-        let audio_hash = match decoded_audio_hash(pathname.clone()) {
-            Ok(audio_hash) => audio_hash,
-            Err(e) => {
-                eprintln!("Failed to generate audio hash for {}: {}", pathname, e);
-                return;
-            }
-        };
+fn get_ratings_batch(pathnames: Vec<String>, app: tauri::AppHandle) -> Result<Value, String> {
+    let connection = open_ratings_database(&app)?;
+    let mut map = Map::new();
 
-        let connection = match open_ratings_database(&app) {
-            Ok(connection) => connection,
-            Err(e) => {
-                eprintln!("Failed to open ratings database: {}", e);
-                return;
-            }
-        };
+    for pathname in &pathnames {
+        let rating: Option<Option<i64>> = connection
+            .query_row(
+                "SELECT rating FROM ratings WHERE pathname = ?1 LIMIT 1",
+                params![pathname],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
 
-        if let Err(e) = connection.execute(
-            "UPDATE ratings
-             SET audio_hash = ?1
-             WHERE pathname = ?2",
-            params![audio_hash, pathname],
-        ) {
-            eprintln!("Failed to update audio hash: {}", e);
-        }
-    });
+        map.insert(pathname.clone(), json!(rating));
+    }
+
+    Ok(Value::Object(map))
 }
 
-#[tauri::command(rename_all = "camelCase")]
 //=============================================================================
-// Insert or update a file rating and return the database id
+// Return the audio hash for a file, using the hash_cache table to avoid
+// recomputing when the file's size and modification time are unchanged.
 //=============================================================================
-fn rate_music_file(pathname: String, rating: i64, app: tauri::AppHandle) -> Result<i64, String> {
+fn get_cached_audio_hash(connection: &Connection, pathname: &str) -> Result<String, String> {
+    let metadata = fs::metadata(pathname).map_err(|e| e.to_string())?;
+    let file_size = metadata.len() as i64;
+    let mtime_ms = metadata
+        .modified()
+        .map_err(|e| e.to_string())?
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_millis() as i64;
+
+    let cached: Option<String> = connection
+        .query_row(
+            "SELECT audio_hash FROM hash_cache
+             WHERE pathname = ?1 AND file_size = ?2 AND mtime_ms = ?3",
+            params![pathname, file_size, mtime_ms],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    if let Some(hash) = cached {
+        return Ok(hash);
+    }
+
+    let hash = audio_file_hash(pathname.to_string())?;
+
+    connection
+        .execute(
+            "INSERT INTO hash_cache (pathname, file_size, mtime_ms, audio_hash)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(pathname) DO UPDATE SET
+                 file_size = excluded.file_size,
+                 mtime_ms  = excluded.mtime_ms,
+                 audio_hash = excluded.audio_hash",
+            params![pathname, file_size, mtime_ms, hash],
+        )
+        .map_err(|e| e.to_string())?;
+
+    Ok(hash)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+//=============================================================================
+// Look up a rating by audio hash. Only call this when get_rating returned
+// false (no pathname match). Computes or retrieves a cached hash for the file,
+// searches the ratings table by hash, and if the stored pathname differs from
+// the current one the pathname is updated in the database.
+// Returns the rating value, or false if no hash match is found.
+//=============================================================================
+fn get_rating_by_audio_hash(pathname: String, app: tauri::AppHandle) -> Result<Value, String> {
+    let connection = open_ratings_database(&app)?;
+
+    let hash = get_cached_audio_hash(&connection, &pathname)?;
+
+    let result: Option<(Option<i64>, String)> = connection
+        .query_row(
+            "SELECT rating, pathname FROM ratings WHERE audio_hash = ?1 LIMIT 1",
+            params![hash],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    match result {
+        Some((rating, db_pathname)) => {
+            // Only update the pathname when the original file no longer exists —
+            // that indicates a move. If the original still exists the file was
+            // copied, so we leave the DB record pointing at the original.
+            if db_pathname != pathname && !Path::new(&db_pathname).exists() {
+                if let Err(e) = connection.execute(
+                    "UPDATE ratings SET pathname = ?1 WHERE audio_hash = ?2",
+                    params![pathname, hash],
+                ) {
+                    eprintln!("Failed to update stale pathname in ratings: {}", e);
+                }
+            }
+            Ok(json!(rating))
+        }
+        None => Ok(Value::Bool(false)),
+    }
+}
+
+#[tauri::command]
+//=============================================================================
+// Insert or update a file rating
+//=============================================================================
+fn rate_music_file(pathname: String, rating: i64, app: tauri::AppHandle) -> Result<(), String> {
     let connection = open_ratings_database(&app)?;
     let rated_timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|e| e.to_string())?
         .as_secs() as i64;
 
+    // Hash is fast now (raw byte window), so compute it synchronously.
+    let audio_hash = get_cached_audio_hash(&connection, &pathname)?;
+
     connection
         .execute(
-            "INSERT INTO ratings (pathname, rating, rated_timestamp)
-             VALUES (?1, ?2, ?3)
-             ON CONFLICT(pathname) DO UPDATE SET
-                 rating = excluded.rating,
+            "INSERT INTO ratings (audio_hash, pathname, rating, rated_timestamp)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(audio_hash) DO UPDATE SET
+                 pathname        = excluded.pathname,
+                 rating          = excluded.rating,
                  rated_timestamp = excluded.rated_timestamp",
-            params![&pathname, rating, rated_timestamp],
+            params![audio_hash, &pathname, rating, rated_timestamp],
         )
         .map_err(|e| e.to_string())?;
 
-    let id = connection
-        .query_row(
-            "SELECT id FROM ratings WHERE pathname = ?1",
-            params![&pathname],
-            |row| row.get(0),
-        )
-        .map_err(|e| e.to_string())?;
-
-    populate_audio_hash_in_background(app, pathname);
-
-    Ok(id)
+    Ok(())
 }
 
 #[tauri::command]
@@ -370,78 +449,82 @@ fn stop_music_file(state: tauri::State<AudioState>) -> Result<(), String> {
 }
 
 //=============================================================================
-// Generate a unique hash for a music file based on its decoded audio data.
+// Find the byte offset where audio data starts, skipping any leading metadata.
+//
+// ID3v2 (MP3): parses the 10-byte header to get the exact tag block size,
+//   which includes album art, lyrics, and all other frames — even multi-MB art.
+//
+// FLAC: walks the chain of METADATA_BLOCK headers (4 bytes each: 1-bit
+//   last-block flag + 7-bit type + 24-bit length) until the last one, then
+//   skips past it to reach the first FRAME block.
+//
+// Everything else (OGG, M4A, WAV, …): skips 256 KB, which clears typical
+//   metadata for these formats. Larger embedded art is unusual in OGG/M4A,
+//   but if it is present the skip still has a good chance of landing in audio.
+//=============================================================================
+fn find_audio_start(file: &mut File, file_len: u64) -> u64 {
+    let mut header = [0u8; 10];
+    if file.read_exact(&mut header).is_err() {
+        return 0;
+    }
+    let _ = file.seek(SeekFrom::Start(0));
+
+    // --- ID3v2 ---
+    if &header[0..3] == b"ID3" {
+        // Bytes 6–9: syncsafe integer (7 usable bits per byte), excludes the
+        // 10-byte header itself.
+        let size = ((header[6] as u64) << 21)
+            | ((header[7] as u64) << 14)
+            | ((header[8] as u64) << 7)
+            | (header[9] as u64);
+        return (10 + size).min(file_len);
+    }
+
+    // --- FLAC ---
+    if &header[0..4] == b"fLaC" {
+        let mut pos: u64 = 4;
+        loop {
+            let mut block_header = [0u8; 4];
+            if file.seek(SeekFrom::Start(pos)).is_err() { break; }
+            if file.read_exact(&mut block_header).is_err() { break; }
+            let last_block = (block_header[0] & 0x80) != 0;
+            let block_len = ((block_header[1] as u64) << 16)
+                | ((block_header[2] as u64) << 8)
+                | (block_header[3] as u64);
+            pos += 4 + block_len;
+            if last_block { break; }
+        }
+        return pos.min(file_len);
+    }
+
+    // --- Everything else: skip 256 KB ---
+    let _ = file.seek(SeekFrom::Start(0));
+    (262144_u64).min(file_len)
+}
+
+//=============================================================================
+// Generate a hash for a music file from a fixed window of raw bytes starting
+// after all leading metadata (ID3v2 tags, album art, FLAC metadata blocks,
+// etc.). Stable across moves, renames, and any metadata/art edits.
 //=============================================================================
 #[tauri::command]
-fn decoded_audio_hash(pathname: String) -> Result<String, String> {
-    let path = Path::new(&pathname);
+fn audio_file_hash(pathname: String) -> Result<String, String> {
+    const READ: usize = 65536;
 
-    let file = File::open(path).map_err(|e| e.to_string())?;
-    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+    let mut file = File::open(&pathname).map_err(|e| e.to_string())?;
+    let file_len = file.metadata().map_err(|e| e.to_string())?.len();
 
-    let mut hint = Hint::new();
-
-    if let Some(extension) = path.extension().and_then(|s| s.to_str()) {
-        hint.with_extension(extension);
-    }
-
-    let probed = symphonia::default::get_probe()
-        .format(
-            &hint,
-            mss,
-            &FormatOptions::default(),
-            &MetadataOptions::default(),
-        )
+    let offset = find_audio_start(&mut file, file_len);
+    file.seek(SeekFrom::Start(offset))
         .map_err(|e| e.to_string())?;
 
-    let mut format = probed.format;
-
-    let track = format
-        .default_track()
-        .ok_or_else(|| "no default audio track found".to_string())?;
-
-    let codec_params = &track.codec_params;
-
-    let mut decoder = symphonia::default::get_codecs()
-        .make(codec_params, &DecoderOptions::default())
-        .map_err(|e| e.to_string())?;
-
-    let track_id = track.id;
+    let mut buf = vec![0u8; READ];
+    let n = file.read(&mut buf).map_err(|e| e.to_string())?;
 
     let mut hasher = DefaultHasher::new();
-
-    loop {
-        let packet = match format.next_packet() {
-            Ok(packet) => packet,
-            Err(SymphoniaError::IoError(_)) => break,
-            Err(SymphoniaError::ResetRequired) => {
-                return Err("decoder reset required".to_string());
-            }
-            Err(err) => return Err(err.to_string()),
-        };
-
-        if packet.track_id() != track_id {
-            continue;
-        }
-
-        let decoded = match decoder.decode(&packet) {
-            Ok(decoded) => decoded,
-            Err(SymphoniaError::DecodeError(_)) => {
-                continue;
-            }
-            Err(err) => return Err(err.to_string()),
-        };
-
-        let spec = *decoded.spec();
-        let duration = decoded.capacity() as u64;
-
-        let mut sample_buffer = SampleBuffer::<i16>::new(duration, spec);
-        sample_buffer.copy_interleaved_ref(decoded);
-
-        for sample in sample_buffer.samples() {
-            hasher.write(&sample.to_le_bytes());
-        }
-    }
+    hasher.write(&buf[..n]);
+    // Do NOT mix in file_len: trailing metadata (ID3v1, APEv2) appended to
+    // the end of the file changes the length without touching audio data.
 
     Ok(format!("{:016x}", hasher.finish()))
 }
@@ -464,6 +547,8 @@ pub fn run() {
             get_file_size,
             get_modified_time,
             get_rating,
+            get_ratings_batch,
+            get_rating_by_audio_hash,
             rate_music_file,
             clear_rating,
             create_database,
@@ -472,7 +557,7 @@ pub fn run() {
             get_path_separator,
             play_music_file,
             stop_music_file,
-            decoded_audio_hash
+            audio_file_hash
         ])
         .setup(|app| {
             ensure_ratings_database(app.handle())
