@@ -80,6 +80,31 @@ body {
 	padding: 0 24px;
 }
 
+#currentPath {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 0;
+}
+
+#pathButtons {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+
+#pathButtons a {
+	color: var(--text);
+	text-decoration: none;
+	font-size: 15px;
+	white-space: nowrap;
+	transition: color 0.2s;
+}
+
+#pathButtons a:hover {
+	color: var(--accent);
+}
+
 #directoryFiles ul {
 	list-style-type: none;
 	columns: 200px;
