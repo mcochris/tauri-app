@@ -372,6 +372,18 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 	wrapper.style.gap = "4px";
 	wrapper.style.alignItems = "center";
 
+	const starButtons: HTMLButtonElement[] = [];
+
+	const updateStarIcons = (hoveredStar: number | null) => {
+		starButtons.forEach((btn, index) => {
+			const starNum = index + 1;
+			const filled = hoveredStar !== null
+				? starNum <= hoveredStar
+				: rating !== false && starNum <= rating;
+			btn.querySelector("i")!.innerHTML = filled ? starFilledIconSvg : starEmptyIconSvg;
+		});
+	};
+
 	for (let starNumber = 1; starNumber <= 5; starNumber++) {
 		const starButton = document.createElement("button");
 		const starIcon = document.createElement("i");
@@ -390,9 +402,13 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 			await rateMusic(filePath, starNumber);
 			await ratingFormatter(filePath, cell, starNumber);
 		});
+		starButton.addEventListener("mouseenter", () => updateStarIcons(starNumber));
 
+		starButtons.push(starButton);
 		wrapper.appendChild(starButton);
 	}
+
+	wrapper.addEventListener("mouseleave", () => updateStarIcons(null));
 
 	if (rating !== false) {
 		const clearButton = document.createElement("button");
@@ -437,7 +453,6 @@ async function stopMusic() {
 // Rate music and clear rating functions
 //=============================================================================
 async function rateMusic(pathname: string, rating: number) {
-	console.log(`Rating file ${pathname} with ${rating} stars`);
 	await invoke("rate_music_file", { "pathname": pathname, "rating": rating });
 }
 
