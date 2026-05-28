@@ -316,8 +316,6 @@ async function listMusicFiles() {
 
 	musicFilesDiv.textContent = "";
 
-	console.log("Music files in current directory:", musicFiles.length);
-
 	if (musicFiles.length === 0) {
 		musicFilesDiv.textContent = "No music files in this directory.";
 		musicFilesDiv.style.fontStyle = "italic";
@@ -388,6 +386,10 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 
 		starIcon.innerHTML = isFilled ? starFilledIconSvg : starEmptyIconSvg;
 		starButton.appendChild(starIcon);
+		starButton.addEventListener("click", async () => {
+			await rateMusic(filePath, starNumber);
+			await ratingFormatter(filePath, cell, starNumber);
+		});
 
 		wrapper.appendChild(starButton);
 	}
@@ -435,6 +437,7 @@ async function stopMusic() {
 // Rate music and clear rating functions
 //=============================================================================
 async function rateMusic(pathname: string, rating: number) {
+	console.log(`Rating file ${pathname} with ${rating} stars`);
 	await invoke("rate_music_file", { "pathname": pathname, "rating": rating });
 }
 
