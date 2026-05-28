@@ -264,7 +264,7 @@ async function listDirectories() {
 	}
 
 	const dirs = await invoke("list_directories", { path }) as string[];
-	const favDir = localStorage.getItem("favoriteDirectory") || "";
+	// const favDir = localStorage.getItem("favoriteDirectory") || "";
 	const ul = document.createElement("ul") as HTMLUListElement;
 
 	appendNavItem(
@@ -343,7 +343,7 @@ async function listMusicFiles() {
 	musicFilesDiv.appendChild(table);
 
 	for (const filePath of musicFiles) {
-		const fileName = filePath.split(pathSeparator).pop() || filePath;
+		const fileName = (filePath.split(pathSeparator).pop() || filePath).replace(/\.[^.]+$/, "");
 		const rating = await invoke<number | false>("get_rating", { "pathname": filePath });
 
 		const row = document.createElement("tr") as HTMLTableRowElement;
@@ -419,132 +419,6 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 
 	cell.appendChild(wrapper);
 }
-
-//=============================================================================
-// List music files in the current path
-// This function is called after listing directories to show music files in the same path
-//=============================================================================
-// async function listMusicFiles() {
-// 	const musicFiles = await invoke("get_music_files", { "path": path }) as string[];
-
-// 	musicFilesDiv.textContent = "";
-
-// 	if (musicFiles.length === 0) {
-// 		musicFilesDiv.textContent = "No music files in this directory.";
-// 		return;
-// 	}
-
-// 	const tableData: { id: number; filepath: string; rating: number | false }[] = [];
-
-// 	for (const [index, filePath] of musicFiles.entries()) {
-// 		tableData.push({
-// 			id: index,
-// 			filepath: filePath,
-// 			rating: await invoke<number | false>("get_rating", { "pathname": filePath }),
-// 		});
-// 	}
-
-// 	// new Tabulator("#musicfiles", {
-// 	// 	data: tableData,
-// 	// 	layout: "fitColumns",
-// 	// 	columns: [
-// 	// 		{ title: "ID", field: "id", visible: false },
-// 	// 		{ title: "File (click to play/stop)", field: "filepath", formatter: pathNameFormatter },
-// 	// 		{ title: "Rating", field: "rating", formatter: ratingFormatter, minWidth: 150 }
-// 	// 	]
-// 	// });
-
-// 	// function pathNameFormatter(cell: Tabulator.CellComponent) {
-// 	// 	const filePath = cell.getValue() as string;
-// 	// 	const fileName = filePath.split(pathSeparator as string).pop() || filePath;
-// 	// 	const link = document.createElement("a");
-
-// 	// 	link.textContent = fileName;
-// 	// 	link.href = "#";
-// 	// 	link.addEventListener("click", async (event) => {
-// 	// 		event.preventDefault();
-
-// 	// 		if (currentPlayingPath === filePath) {
-// 	// 			await stopMusic();
-// 	// 			currentPlayingPath = null;
-// 	// 			return;
-// 	// 		}
-
-// 	// 		await playMusic(filePath);
-// 	// 		currentPlayingPath = filePath;
-// 	// 	});
-
-// 		// return link;
-// 	}
-
-// 	function ratingFormatter(cell: Tabulator.CellComponent) {
-// 		const rowData = cell.getRow().getData() as { filepath: string; rating: number | false };
-// 		const filePath = rowData.filepath;
-// 		const wrapper = document.createElement("div");
-
-// 		wrapper.className = "d-flex align-items-center gap-1";
-
-// 		function renderRating(rating: number | false) {
-// 			wrapper.replaceChildren();
-
-// 			for (let starNumber = 1; starNumber <= 5; starNumber++) {
-// 				const starButton = document.createElement("button");
-// 				const starIcon = document.createElement("i");
-// 				const isFilled = rating !== false && starNumber <= rating;
-
-// 				starButton.type = "button";
-// 				starButton.className = "btn btn-link p-0 border-0";
-// 				starButton.style.color = "#d4af37";
-// 				starButton.title = `Rate ${starNumber}`;
-// 				starButton.setAttribute("aria-label", `Rate ${starNumber} star${starNumber === 1 ? "" : "s"}`);
-
-// 				starIcon.className = `bi ${isFilled ? "bi-star-fill" : "bi-star"}`;
-// 				starButton.appendChild(starIcon);
-
-// 				starButton.addEventListener("click", async (event) => {
-// 					event.preventDefault();
-// 					event.stopPropagation();
-
-// 					await rateMusic(filePath, starNumber);
-// 					rowData.rating = starNumber;
-// 					renderRating(starNumber);
-// 				});
-
-// 				wrapper.appendChild(starButton);
-// 			}
-
-// 			if (rating !== false) {
-// 				const clearButton = document.createElement("button");
-// 				const clearIcon = document.createElement("i");
-
-// 				clearButton.type = "button";
-// 				clearButton.className = "btn btn-link p-0 border-0 ms-2";
-// 				clearButton.style.color = "currentColor";
-// 				clearButton.dataset.action = "clear-rating";
-// 				clearButton.dataset.filePath = filePath;
-// 				clearButton.title = "Clear rating";
-// 				clearButton.setAttribute("aria-label", "Clear rating");
-// 				clearIcon.className = "bi bi-trash-fill";
-
-// 				clearButton.appendChild(clearIcon);
-// 				clearButton.addEventListener("click", async (event) => {
-// 					event.preventDefault();
-// 					event.stopPropagation();
-
-// 					await clearRating(filePath);
-// 					rowData.rating = false;
-// 					renderRating(false);
-// 				});
-
-// 				wrapper.appendChild(clearButton);
-// 			}
-// 		}
-
-// 		renderRating(cell.getValue() as number | false);
-
-// 		return wrapper;
-// 	}
-// }
 
 //=============================================================================
 // Play and stop music functions
