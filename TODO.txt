@@ -1,0 +1,34 @@
+- Check audio hash when loading files, can't pull up rating by filename (Done)
+
+- Add playlist function
+
+- Add spreadsheet function
+
+- Fix table headers when in dark mode
+
+- Make "No music files..." italic (Done)
+
+- export app to executable
+
+- test on linux
+
+- test on windows
+
+- test on mac
+
+- change name to "audiostar"? (Done)
+
+- add command line option to get DB location (Will put in UI)
+
+- test UI in dark and light modes
+
+- fix header (Done)
+
+- Test light color scheme
+
+- CSS music table (Done)
+
+- test moving/copying/renaming a file to see if it's rating sticks
+
+- test changing a file's metadata to see if it's rating sticks
+
