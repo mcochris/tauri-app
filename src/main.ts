@@ -8,6 +8,9 @@ import {
 
 // import Swal from 'sweetalert2';
 
+//=============================================================================
+// Prevent header buttons from changing other link colors when clicked
+//=============================================================================
 document.getElementById("header-right")?.addEventListener("click", (event) => {
 	event.preventDefault();
 });
@@ -30,6 +33,12 @@ let path = "";
 let currentPlayingPath: string | null = null;
 let directoryToken = 0; // incremented on each navigation to cancel stale hash lookups
 
+//=============================================================================
+// Updates the current path display. Shows the path text with a favorite
+// icon if the current path matches the saved favorite directory. Also
+// renders navigation buttons (Home, Set Favorite, Go to Favorite) based
+// on the current path state.
+//=============================================================================
 function updateCurrentPathDisplay() {
 	const favDir = localStorage.getItem("favoriteDirectory") || "";
 
@@ -64,6 +73,11 @@ function updateCurrentPathDisplay() {
 	currentPathDiv.appendChild(buttonsDiv);
 }
 
+//=============================================================================
+// Creates and returns an anchor element configured with an href of "#",
+// an innerHTML label, and data-action / optional data-value dataset
+// attributes for use with delegated click handlers.
+//=============================================================================
 function createActionLink(labelHtml: string, action: string, value?: string) {
 	const link = document.createElement("a") as HTMLAnchorElement;
 
@@ -78,6 +92,11 @@ function createActionLink(labelHtml: string, action: string, value?: string) {
 	return link;
 }
 
+//=============================================================================
+// Conditionally appends a list item containing an action link to the
+// given UL element. Returns false without modifying the list when
+// shouldRender is false; otherwise appends the item and returns true.
+//=============================================================================
 function appendNavItem(
 	list: HTMLUListElement,
 	shouldRender: boolean,
@@ -98,6 +117,12 @@ function appendNavItem(
 	return true;
 }
 
+//=============================================================================
+// Handles delegated click events on the directory panel. Navigates into
+// a sub-directory, up one level, to the home directory, or to the saved
+// favorite directory. Also persists the current path as the favorite
+// directory when the set-favorite action is triggered.
+//=============================================================================
 directoryDiv.addEventListener("click", async (event) => {
 	const target = (event.target as HTMLElement).closest("[data-action]") as HTMLElement | null;
 
@@ -132,6 +157,11 @@ directoryDiv.addEventListener("click", async (event) => {
 	await listDirectories();
 });
 
+//=============================================================================
+// Handles delegated click events on the current path display bar.
+// Responds to the set-favorite, go-home, and go-favorite actions to
+// update the current path and refresh the directory listing.
+//=============================================================================
 currentPathDiv.addEventListener("click", async (event) => {
 	const target = (event.target as HTMLElement).closest("[data-action]") as HTMLElement | null;
 
@@ -157,6 +187,11 @@ currentPathDiv.addEventListener("click", async (event) => {
 	await listDirectories();
 });
 
+//=============================================================================
+// Handles click events on the music file table. Toggles play/stop for a
+// track when its play-toggle cell is clicked, and clears a track's star
+// rating when the clear-rating button is clicked.
+//=============================================================================
 musicFilesDiv.addEventListener("click", async (event) => {
 	const target = event.target as HTMLElement;
 	const playCell = target.closest("[data-action='play-toggle']") as HTMLElement | null;
@@ -202,6 +237,11 @@ musicFilesDiv.addEventListener("click", async (event) => {
 	await clearRating(filePath);
 });
 
+//=============================================================================
+// Handles change events on the music file table. Reads the star rating
+// from a radio input's dataset and invokes rateMusic to persist the new
+// rating for the selected track.
+//=============================================================================
 musicFilesDiv.addEventListener("change", (event) => {
 	const radio = (event.target as HTMLElement).closest("input[type='radio'][data-file-path]") as HTMLInputElement | null;
 
