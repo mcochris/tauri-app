@@ -115,24 +115,24 @@ body {
 }
 
 .directory-name {
-cursor: pointer;
+	cursor: pointer;
 }
 
 .directory-name:hover {
-text-decoration: underline;
+	text-decoration: underline;
 }
 
 .play-button {
-cursor: pointer;
+	cursor: pointer;
 }
 
 .play-button:hover {
-text-decoration: underline;
+	text-decoration: underline;
 }
 
 .play-button.playing {
-font-weight: bold;
-color: var(--accent);
+	font-weight: bold;
+	color: var(--accent);
 }
 
 .rating-cell-wrapper {
@@ -195,4 +195,19 @@ color: var(--accent);
 
 #musicFiles {
 	margin-bottom: 32px;
+}
+
+.swal2-html-container .title {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 16px;
+	font-size: 40px;
+	font-weight: 600;
+	color: var(--text-h);
+}
+
+.swal2-html-container .dbLocation {
+	font-size: 16px;
+	color: var(--text);
 }

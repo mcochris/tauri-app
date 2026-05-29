@@ -6,18 +6,13 @@ import {
 	getCurrentWindow,
 } from "@tauri-apps/api/window";
 
-// import Swal from 'sweetalert2';
-
-//=============================================================================
-// Prevent header buttons from changing other link colors when clicked
-//=============================================================================
-document.getElementById("header-right")?.addEventListener("click", (event) => {
-	event.preventDefault();
-});
+import Swal from 'sweetalert2';
 
 const directoryDiv = document.getElementById("directoryFiles") as HTMLDivElement;
 const currentPathDiv = document.getElementById("currentPath") as HTMLDivElement;
 const musicFilesDiv = document.getElementById("musicFiles") as HTMLDivElement;
+const headerAboutButton = document.getElementById("aboutButton") as HTMLButtonElement;
+// const headerHelpButton = document.getElementById("helpButton") as HTMLButtonElement;
 
 const backIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/></svg> ';
 const homeIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-house" viewBox="0 0 16 16"><path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293zM13 7.207V13.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V7.207l5-5z"/></svg> ';
@@ -32,6 +27,19 @@ let pathSeparator = "/";
 let path = "";
 let currentPlayingPath: string | null = null;
 let directoryToken = 0; // incremented on each navigation to cancel stale hash lookups
+
+//=============================================================================
+// Prevent header buttons from changing other link colors when clicked
+//=============================================================================
+headerAboutButton.addEventListener("click", async (event) => {
+	event.preventDefault();
+	Swal.fire({
+		width: "40%",
+		html: `<div class="title"><img src="/src-tauri/icons/64x64.png" alt="logo"><span class="title">Audiostar</span></div><p>Version 1.0.0</p><p>Database Path:<br><span class="dbLocation">${await invoke('get_database_path') as string}</span></p><p>GitHub Repository: <a href="https://github.com/mcochris/audiostar" target="_blank" rel="noopener">https://github.com/mcochris/audiostar</a></p>`,
+		confirmButtonText: "OK",
+		theme: "auto",
+	});
+});
 
 //=============================================================================
 // Updates the current path display. Shows the path text with a favorite
