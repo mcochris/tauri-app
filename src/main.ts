@@ -17,6 +17,8 @@ const headerAboutButton = document.getElementById("aboutButton") as HTMLButtonEl
 const headerPlaylistButton = document.getElementById("playlistButton") as HTMLButtonElement;
 const headerRatingsButton = document.getElementById("ratingsButton") as HTMLButtonElement;
 const playlistRatingButtonsDiv = document.getElementById("playlistRatingButtons") as HTMLDivElement;
+const playlistFileCountSpan = document.getElementById("playlistFileCount") as HTMLSpanElement;
+const playlistFilesTableBody = document.getElementById("playlistFilesTableBody") as HTMLTableSectionElement;
 // const headerSpreadsheetButton = document.getElementById("spreadsheetButton") as HTMLButtonElement;
 // const headerHelpButton = document.getElementById("helpButton") as HTMLButtonElement;
 
@@ -33,6 +35,7 @@ let pathSeparator = "/";
 let path = "";
 let currentPlayingPath: string | null = null;
 let directoryToken = 0; // incremented on each navigation to cancel stale hash lookups
+const selectedPlaylistRatings = new Set<string>();
 headerRatingsButton.style.display = "none";
 
 //=============================================================================
@@ -73,14 +76,23 @@ headerRatingsButton.addEventListener("click", async (event) => {
 });
 
 //=============================================================================
-// Placeholder click handler for playlist action buttons
+// Toggle playlist rating filter buttons and refresh the playlist table
 //=============================================================================
 playlistRatingButtonsDiv.addEventListener("click", async (event) => {
 	event.preventDefault();
 	const target = event.target as HTMLElement;
 	if (target.tagName === "INPUT" && (target as HTMLInputElement).type === "button") {
-		const isActive = target.style.backgroundColor === "var(--accent)";
-		target.style.backgroundColor = isActive ? "var(--button)" : "var(--accent)";
+		const button = target as HTMLInputElement;
+		const isActive = button.style.backgroundColor === "var(--accent)";
+		button.style.backgroundColor = isActive ? "var(--button)" : "var(--accent)";
+
+		if (isActive) {
+			selectedPlaylistRatings.delete(button.name);
+		} else {
+			selectedPlaylistRatings.add(button.name);
+		}
+
+		await listPlaylistFiles();
 	}
 });
 
@@ -616,4 +628,60 @@ async function rateMusic(pathname: string, rating: number) {
 
 async function clearRating(pathname: string) {
 	await invoke("clear_rating", { "pathname": pathname });
+}
+
+//=============================================================================
+// Query the database for files matching the selected playlist ratings and
+// populate the playlist table and file count display.
+//=============================================================================
+async function listPlaylistFiles() {
+	const numericRatings: number[] = [];
+	let includeUnrated = false;
+
+	for (const rating of selectedPlaylistRatings) {
+		if (rating === "unrated") {
+			includeUnrated = true;
+		} else {
+			numericRatings.push(Number(rating));
+		}
+	}
+
+	if (numericRatings.length === 0 && !includeUnrated) {
+		playlistFileCountSpan.textContent = "0";
+		playlistFilesTableBody.innerHTML = "";
+		return;
+	}
+
+	const files = await invoke<Array<{ pathname: string; rating: number | null }>>(
+		"get_files_by_ratings",
+		{ ratings: numericRatings, include_unrated: includeUnrated },
+	);
+
+	playlistFileCountSpan.textContent = String(files.length);
+	playlistFilesTableBody.innerHTML = "";
+
+	for (const file of files) {
+		const row = document.createElement("tr");
+		const nameCell = document.createElement("td");
+		const ratingCell = document.createElement("td");
+
+		const fileName = (file.pathname.split(pathSeparator).pop() || file.pathname).replace(/\.[^.]+$/, "");
+		nameCell.textContent = fileName;
+		nameCell.title = file.pathname;
+
+		if (file.rating !== null) {
+			let stars = "";
+			for (let i = 1; i <= 5; i++) {
+				stars += i <= file.rating ? starFilledIconSvg : starEmptyIconSvg;
+			}
+			ratingCell.innerHTML = stars;
+		} else {
+			ratingCell.textContent = "Unrated";
+			ratingCell.style.fontStyle = "italic";
+		}
+
+		row.appendChild(nameCell);
+		row.appendChild(ratingCell);
+		playlistFilesTableBody.appendChild(row);
+	}
 }

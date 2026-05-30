@@ -1,6 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use rodio::{Decoder, OutputStream, OutputStreamBuilder, Sink};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, params_from_iter, Connection, OptionalExtension};
 use serde_json::{json, Map, Value};
 use std::collections::hash_map::DefaultHasher;
 use std::fs;
@@ -529,6 +529,65 @@ fn audio_file_hash(pathname: String) -> Result<String, String> {
     Ok(format!("{:016x}", hasher.finish()))
 }
 
+#[tauri::command(rename_all = "snake_case")]
+//=============================================================================
+// Return all ratings records whose rating matches one of the supplied numeric
+// rating values or whose rating is NULL (when include_unrated is true).
+// Returns a JSON array of objects: { pathname, rating } sorted by pathname.
+//=============================================================================
+fn get_files_by_ratings(
+    ratings: Vec<i64>,
+    include_unrated: bool,
+    app: tauri::AppHandle,
+) -> Result<Value, String> {
+    if ratings.is_empty() && !include_unrated {
+        return Ok(json!([]));
+    }
+
+    let connection = open_ratings_database(&app)?;
+    let mut conditions: Vec<String> = Vec::new();
+
+    if !ratings.is_empty() {
+        let placeholders: Vec<String> = (1..=ratings.len()).map(|i| format!("?{}", i)).collect();
+        conditions.push(format!("rating IN ({})", placeholders.join(", ")));
+    }
+
+    if include_unrated {
+        conditions.push("rating IS NULL".to_string());
+    }
+
+    let sql = format!(
+        "SELECT pathname, rating FROM ratings WHERE {} ORDER BY pathname",
+        conditions.join(" OR ")
+    );
+
+    let mut stmt = connection.prepare(&sql).map_err(|e| e.to_string())?;
+
+    let results: Vec<Value> = if !ratings.is_empty() {
+        stmt.query_map(params_from_iter(ratings.iter()), |row| {
+            let pathname: String = row.get(0)?;
+            let rating: Option<i64> = row.get(1)?;
+            Ok((pathname, rating))
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .map(|(pathname, rating)| json!({"pathname": pathname, "rating": rating}))
+        .collect()
+    } else {
+        stmt.query_map([], |row| {
+            let pathname: String = row.get(0)?;
+            let rating: Option<i64> = row.get(1)?;
+            Ok((pathname, rating))
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .map(|(pathname, rating)| json!({"pathname": pathname, "rating": rating}))
+        .collect()
+    };
+
+    Ok(json!(results))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 //=============================================================================
 // Main entry point for the Tauri application
@@ -557,7 +616,8 @@ pub fn run() {
             get_path_separator,
             play_music_file,
             stop_music_file,
-            audio_file_hash
+            audio_file_hash,
+            get_files_by_ratings
         ])
         .setup(|app| {
             ensure_ratings_database(app.handle())
