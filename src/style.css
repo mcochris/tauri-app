@@ -146,6 +146,7 @@ body {
 	display: flex;
 	gap: 2px;
 	align-items: center;
+	min-width: 142px;
 }
 
 .star-button {

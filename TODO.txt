@@ -32,7 +32,7 @@
 
 - test changing a file's metadata to see if it's rating sticks
 
-- blue dot update indicator
+- add blue dot update indicator
 
 - get artist from metadata, store in DB, display in playlist
 
@@ -43,4 +43,6 @@
 - playlist page does not update when you switch to rating page, add a rating, then switch back to playlist page
 
 - style playlist page
+
+- add play/pause button to playlist table
 
