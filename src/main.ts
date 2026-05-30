@@ -16,6 +16,7 @@ const playlistContainerDiv = document.getElementById("playlistContainer") as HTM
 const headerAboutButton = document.getElementById("aboutButton") as HTMLButtonElement;
 const headerPlaylistButton = document.getElementById("playlistButton") as HTMLButtonElement;
 const headerRatingsButton = document.getElementById("ratingsButton") as HTMLButtonElement;
+const playlistRatingButtonsDiv = document.getElementById("playlistRatingButtons") as HTMLDivElement;
 // const headerSpreadsheetButton = document.getElementById("spreadsheetButton") as HTMLButtonElement;
 // const headerHelpButton = document.getElementById("helpButton") as HTMLButtonElement;
 
@@ -50,7 +51,7 @@ headerAboutButton.addEventListener("click", async (event) => {
 });
 
 //=============================================================================
-// ?
+// Show the playlist container and hide the ratings container
 //=============================================================================
 headerPlaylistButton.addEventListener("click", async (event) => {
 	event.preventDefault();
@@ -61,7 +62,7 @@ headerPlaylistButton.addEventListener("click", async (event) => {
 });
 
 //=============================================================================
-// ?
+// Show the ratings container and hide the playlist container
 //=============================================================================
 headerRatingsButton.addEventListener("click", async (event) => {
 	event.preventDefault();
@@ -69,6 +70,18 @@ headerRatingsButton.addEventListener("click", async (event) => {
 	ratingsContainerDiv.style.display = "block";
 	headerRatingsButton.style.display = "none";
 	headerPlaylistButton.style.display = "inline-block";
+});
+
+//=============================================================================
+// Placeholder click handler for playlist action buttons
+//=============================================================================
+playlistRatingButtonsDiv.addEventListener("click", async (event) => {
+	event.preventDefault();
+	const target = event.target as HTMLElement;
+	if (target.tagName === "INPUT" && (target as HTMLInputElement).type === "button") {
+		const isActive = target.style.backgroundColor === "var(--accent)";
+		target.style.backgroundColor = isActive ? "var(--button)" : "var(--accent)";
+	}
 });
 
 //=============================================================================
