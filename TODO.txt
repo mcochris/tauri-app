@@ -32,4 +32,5 @@
 
 - test changing a file's metadata to see if it's rating sticks
 
+- blue dot update indicator
 

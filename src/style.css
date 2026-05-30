@@ -80,7 +80,8 @@ body {
 	color: var(--accent);
 }
 
-#container {
+#ratingsContainer,
+#playlistContainer {
 	padding: 0 24px;
 }
 
