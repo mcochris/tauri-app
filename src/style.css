@@ -26,6 +26,12 @@
 		--accent: #c084fc;
 		--star: #fbbf24;
 		--star-clear: #f87171;
+		--text: #b9ada4;
+		--text-h: #E0DBD7;
+		--bg: #0d0000;
+		--border: #3E0000;
+		--accent: #ed8008;
+		--button: #5B5556;
 	}
 }
 
@@ -45,7 +51,7 @@ body {
 	justify-content: space-between;
 	padding: 0 24px;
 	height: 72px;
-	border-bottom: 1px solid var(--border);
+	border-bottom: 2px solid var(--border);
 	background: var(--bg);
 }
 
@@ -211,4 +217,64 @@ body {
 .swal2-html-container .dbLocation {
 	font-size: 16px;
 	color: var(--text);
+}
+
+#playlistRatingButtons {
+	margin-top: 16px;
+	display: flex;
+	gap: 12px;
+	justify-content: center;
+}
+
+#playlistRatingButtons input {
+	padding: 8px 16px;
+	font-size: 15px;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: background 0.2s, transform 0.1s;
+	background-color: var(--button);
+}
+
+#playlistRatingButtons input:hover {
+	cursor: pointer;
+	background: var(--accent);
+}
+
+#playlistRatingButtons div {
+	padding-top: 4px;
+}
+
+#numberOfPlaylistFiles {
+	font-size: 14px;
+	color: var(--text);
+	margin-top: 8px;
+	text-align: center;
+}
+
+#playlistActionButtons {
+	display: flex;
+	gap: 12px;
+	justify-content: center;
+	margin-top: 16px;
+}
+
+#playlistActionButtons input:hover {
+	cursor: pointer;
+	background: var(--accent);
+}
+
+#playlistActionButtons input {
+	padding: 8px 16px;
+	font-size: 15px;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	background-color: var(--button);
+	transition: background 0.2s, transform 0.1s;
+}
+
+#playlistActions input:hover {
+	background: var(--accent);
+	transform: scale(1.05);
 }

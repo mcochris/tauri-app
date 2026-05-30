@@ -43,7 +43,36 @@
 	</div>
 
 	<div id="playlistContainer">
-		<p>Playlist content goes here</p>
+		<div id="playlistRatingButtons">
+			<div>Rating:</div>
+			<input type="button" name="1" value="1">
+			<input type="button" name="2" value="2">
+			<input type="button" name="3" value="3">
+			<input type="button" name="4" value="4">
+			<input type="button" name="5" value="5">
+			<input type="button" name="unrated" value="Unrated">
+		</div>
+		<div id="numberOfPlaylistFiles">
+			Number of files in playlist: <span id="playlistFileCount">0</span>
+		</div>
+		<div id="playlistActionButtons">
+			<input type="button" name="play" value="Play">
+			<input type="button" name="pause" value="Pause">
+			<input type="button" name="skip" value="Skip">
+			<input type="button" name="randomize" value="Randomize">
+		</div>
+		<div id="playlistFiles">
+			<table>
+				<thead>
+					<tr>
+						<th>File</th>
+						<th>Rating</th>
+					</tr>
+				</thead>
+				<tbody id="playlistFilesTableBody">
+				</tbody>
+			</table>
+		</div>
 	</div>
 </body>
 

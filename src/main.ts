@@ -66,7 +66,7 @@ headerPlaylistButton.addEventListener("click", async (event) => {
 headerRatingsButton.addEventListener("click", async (event) => {
 	event.preventDefault();
 	playlistContainerDiv.style.display = "none";
-	location.reload();
+	ratingsContainerDiv.style.display = "block";
 	headerRatingsButton.style.display = "none";
 	headerPlaylistButton.style.display = "inline-block";
 });
