@@ -10,6 +10,10 @@ use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
+use symphonia::core::formats::FormatOptions;
+use symphonia::core::io::MediaSourceStream;
+use symphonia::core::meta::{MetadataOptions, StandardTagKey, Value as MetaValue};
+use symphonia::core::probe::Hint;
 use tauri::Manager;
 
 struct AudioState {
@@ -30,7 +34,9 @@ const RATINGS_SCHEMA: &str = r#"
         audio_hash TEXT NOT NULL PRIMARY KEY,
         pathname TEXT NOT NULL UNIQUE,
         rating INTEGER,
-        rated_timestamp INTEGER NOT NULL
+        rated_timestamp INTEGER NOT NULL,
+        artist TEXT,
+        album TEXT
     )
 "#;
 const HASH_CACHE_SCHEMA: &str = r#"
@@ -66,6 +72,7 @@ fn ensure_ratings_database(app: &tauri::AppHandle) -> Result<(), String> {
     connection
         .execute(HASH_CACHE_SCHEMA, [])
         .map_err(|e| e.to_string())?;
+    migrate_ratings_schema(&connection);
 
     Ok(())
 }
@@ -89,8 +96,93 @@ fn open_ratings_database(app: &tauri::AppHandle) -> Result<Connection, String> {
     connection
         .execute(HASH_CACHE_SCHEMA, [])
         .map_err(|e| e.to_string())?;
+    migrate_ratings_schema(&connection);
 
     Ok(connection)
+}
+
+//=============================================================================
+// Add artist and album columns to existing ratings tables that pre-date them.
+// SQLite does not support IF NOT EXISTS on ALTER TABLE, so errors are ignored.
+//=============================================================================
+fn migrate_ratings_schema(connection: &Connection) {
+    let _ = connection.execute("ALTER TABLE ratings ADD COLUMN artist TEXT", []);
+    let _ = connection.execute("ALTER TABLE ratings ADD COLUMN album TEXT", []);
+}
+
+//=============================================================================
+// Read artist and album from a music file's embedded metadata using Symphonia.
+// Returns (artist, album) — either value may be None if the tag is absent.
+//=============================================================================
+fn read_music_metadata(pathname: &str) -> (Option<String>, Option<String>) {
+    let file = match File::open(pathname) {
+        Ok(f) => f,
+        Err(_) => return (None, None),
+    };
+
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+    let mut hint = Hint::new();
+
+    if let Some(ext) = Path::new(pathname).extension().and_then(|e| e.to_str()) {
+        hint.with_extension(ext);
+    }
+
+    let probe_result = match symphonia::default::get_probe().format(
+        &hint,
+        mss,
+        &FormatOptions::default(),
+        &MetadataOptions::default(),
+    ) {
+        Ok(r) => r,
+        Err(_) => return (None, None),
+    };
+
+    let mut artist: Option<String> = None;
+    let mut album: Option<String> = None;
+
+    let extract = |tags: &[symphonia::core::meta::Tag],
+                   artist: &mut Option<String>,
+                   album: &mut Option<String>| {
+        for tag in tags {
+            if let Some(std_key) = tag.std_key {
+                let string_val = match &tag.value {
+                    MetaValue::String(s) => Some(s.clone()),
+                    _ => None,
+                };
+                match std_key {
+                    StandardTagKey::Artist | StandardTagKey::AlbumArtist => {
+                        if artist.is_none() {
+                            *artist = string_val;
+                        }
+                    }
+                    StandardTagKey::Album => {
+                        if album.is_none() {
+                            *album = string_val;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    };
+
+    // Metadata embedded in the format container (most formats).
+    let mut format = probe_result.format;
+    if let Some(rev) = format.metadata().current() {
+        extract(rev.tags(), &mut artist, &mut album);
+    }
+
+    // Metadata found during probing (some formats surface tags here instead).
+    if artist.is_none() || album.is_none() {
+        let mut metadata = probe_result.metadata;
+        if let Some(metadata_obj) = metadata.get() {
+            if let Some(rev) = metadata_obj.current() {
+                extract(rev.tags(), &mut artist, &mut album);
+            }
+        }
+    }
+
+    (artist, album)
 }
 
 #[tauri::command]
@@ -308,16 +400,19 @@ fn rate_music_file(pathname: String, rating: i64, app: tauri::AppHandle) -> Resu
 
     // Hash is fast now (raw byte window), so compute it synchronously.
     let audio_hash = get_cached_audio_hash(&connection, &pathname)?;
+    let (artist, album) = read_music_metadata(&pathname);
 
     connection
         .execute(
-            "INSERT INTO ratings (audio_hash, pathname, rating, rated_timestamp)
-             VALUES (?1, ?2, ?3, ?4)
+            "INSERT INTO ratings (audio_hash, pathname, rating, rated_timestamp, artist, album)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
              ON CONFLICT(audio_hash) DO UPDATE SET
                  pathname        = excluded.pathname,
                  rating          = excluded.rating,
-                 rated_timestamp = excluded.rated_timestamp",
-            params![audio_hash, &pathname, rating, rated_timestamp],
+                 rated_timestamp = excluded.rated_timestamp,
+                 artist          = COALESCE(excluded.artist, ratings.artist),
+                 album           = COALESCE(excluded.album, ratings.album)",
+            params![audio_hash, &pathname, rating, rated_timestamp, artist, album],
         )
         .map_err(|e| e.to_string())?;
 
@@ -588,6 +683,51 @@ fn get_files_by_ratings(
     Ok(json!(results))
 }
 
+#[tauri::command(rename_all = "snake_case")]
+//=============================================================================
+// Return artist, album, filename, and rating for a music file pathname.
+// Checks the database first for stored metadata; falls back to reading tags
+// directly from the file when the record is absent or metadata is missing.
+// Used by playlist-generation features.
+//=============================================================================
+fn get_music_file_info(pathname: String, app: tauri::AppHandle) -> Result<Value, String> {
+    let connection = open_ratings_database(&app)?;
+
+    let filename = Path::new(&pathname)
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+
+    let db_result: Option<(Option<i64>, Option<String>, Option<String>)> = connection
+        .query_row(
+            "SELECT rating, artist, album FROM ratings WHERE pathname = ?1 LIMIT 1",
+            params![pathname],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    let (rating, artist, album) = match db_result {
+        Some((rating, Some(artist), album)) => (rating, Some(artist), album),
+        Some((rating, None, album)) => {
+            let (file_artist, file_album) = read_music_metadata(&pathname);
+            (rating, file_artist, album.or(file_album))
+        }
+        None => {
+            let (file_artist, file_album) = read_music_metadata(&pathname);
+            (None, file_artist, file_album)
+        }
+    };
+
+    Ok(json!({
+        "pathname": pathname,
+        "filename": filename,
+        "artist":   artist,
+        "album":    album,
+        "rating":   rating,
+    }))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 //=============================================================================
 // Main entry point for the Tauri application
@@ -617,7 +757,8 @@ pub fn run() {
             play_music_file,
             stop_music_file,
             audio_file_hash,
-            get_files_by_ratings
+            get_files_by_ratings,
+            get_music_file_info
         ])
         .setup(|app| {
             ensure_ratings_database(app.handle())
