@@ -661,6 +661,10 @@ async function listPlaylistFiles() {
 	playlistFilesTableBody.innerHTML = "";
 
 	for (const file of files) {
+		const fileInfo = await invoke<{ pathname: string; filename: string; artist: string | null; album: string | null; rating: number | null }>(
+			"get_music_file_info",
+			{ pathname: file.pathname },
+		);
 		const row = document.createElement("tr");
 		const playCell = document.createElement("td");
 		playCell.textContent = "▶️";
@@ -668,7 +672,9 @@ async function listPlaylistFiles() {
 		playCell.dataset.action = "play-toggle";
 		playCell.dataset.filePath = file.pathname;
 		const artistCell = document.createElement("td");
+		artistCell.textContent = fileInfo.artist || "Unknown Artist";
 		const albumCell = document.createElement("td");
+		albumCell.textContent = fileInfo.album || "Unknown Album";
 		const songCell = document.createElement("td");
 		const ratingCell = document.createElement("td");
 

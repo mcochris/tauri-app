@@ -412,7 +412,14 @@ fn rate_music_file(pathname: String, rating: i64, app: tauri::AppHandle) -> Resu
                  rated_timestamp = excluded.rated_timestamp,
                  artist          = COALESCE(excluded.artist, ratings.artist),
                  album           = COALESCE(excluded.album, ratings.album)",
-            params![audio_hash, &pathname, rating, rated_timestamp, artist, album],
+            params![
+                audio_hash,
+                &pathname,
+                rating,
+                rated_timestamp,
+                artist,
+                album
+            ],
         )
         .map_err(|e| e.to_string())?;
 
@@ -580,14 +587,20 @@ fn find_audio_start(file: &mut File, file_len: u64) -> u64 {
         let mut pos: u64 = 4;
         loop {
             let mut block_header = [0u8; 4];
-            if file.seek(SeekFrom::Start(pos)).is_err() { break; }
-            if file.read_exact(&mut block_header).is_err() { break; }
+            if file.seek(SeekFrom::Start(pos)).is_err() {
+                break;
+            }
+            if file.read_exact(&mut block_header).is_err() {
+                break;
+            }
             let last_block = (block_header[0] & 0x80) != 0;
             let block_len = ((block_header[1] as u64) << 16)
                 | ((block_header[2] as u64) << 8)
                 | (block_header[3] as u64);
             pos += 4 + block_len;
-            if last_block { break; }
+            if last_block {
+                break;
+            }
         }
         return pos.min(file_len);
     }
