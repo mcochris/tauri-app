@@ -32,6 +32,11 @@ const trashCanIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" heig
 const playIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="currentColor" class="bi bi-play-fill" viewBox="0 0 16 16"><path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.305c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>';
 const pauseIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="currentColor" class="bi bi-pause-fill" viewBox="0 0 16 16"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>';
 
+function parseSvg(svgString: string): SVGElement {
+	const doc = new DOMParser().parseFromString(svgString, "image/svg+xml");
+	return doc.documentElement as unknown as SVGElement;
+}
+
 let homeDirectory = "";
 let pathSeparator = "/";
 
@@ -108,15 +113,11 @@ playlistRatingButtonsDiv.addEventListener("click", async (event) => {
 function updateCurrentPathDisplay() {
 	const favDir = localStorage.getItem("favoriteDirectory") || "";
 
-	currentPathDiv.innerHTML = "";
+	currentPathDiv.replaceChildren();
 
 	const pathText = document.createElement("span");
-
-	if (favDir && path === favDir) {
-		pathText.innerHTML = `Current Path: ${path}&nbsp;&nbsp;&nbsp;${favoriteIconFilledSvg}`;
-	} else {
-		pathText.innerHTML = `Current Path: ${path}&nbsp;&nbsp;&nbsp;${favoriteIconUnfilledSvg}`;
-	}
+	pathText.appendChild(document.createTextNode(`Current Path: ${path}\u00A0\u00A0\u00A0`));
+	pathText.appendChild(parseSvg(favDir && path === favDir ? favoriteIconFilledSvg : favoriteIconUnfilledSvg));
 
 	currentPathDiv.appendChild(pathText);
 
@@ -125,15 +126,15 @@ function updateCurrentPathDisplay() {
 	buttonsDiv.id = "pathButtons";
 
 	if (path !== homeDirectory) {
-		buttonsDiv.appendChild(createActionLink(`${homeIconSvg} Home`, "go-home"));
+		buttonsDiv.appendChild(createActionLink(homeIconSvg, "Home", "go-home"));
 	}
 
 	if (path !== favDir && path !== homeDirectory) {
-		buttonsDiv.appendChild(createActionLink(`${favoriteIconUnfilledSvg} Make fav dir`, "set-favorite"));
+		buttonsDiv.appendChild(createActionLink(favoriteIconUnfilledSvg, "Make fav dir", "set-favorite"));
 	}
 
 	if (favDir && path !== favDir) {
-		buttonsDiv.appendChild(createActionLink(`${favoriteIconFilledSvg} Go to fav dir`, "go-favorite"));
+		buttonsDiv.appendChild(createActionLink(favoriteIconFilledSvg, "Go to fav dir", "go-favorite"));
 	}
 
 	currentPathDiv.appendChild(buttonsDiv);
@@ -141,13 +142,14 @@ function updateCurrentPathDisplay() {
 
 //=============================================================================
 // Creates and returns an anchor element configured with an href of "#",
-// an innerHTML label, and data-action / optional data-value dataset
+// an SVG icon and text label, and data-action / optional data-value dataset
 // attributes for use with delegated click handlers.
 //=============================================================================
-function createActionLink(labelHtml: string, action: string, value?: string) {
+function createActionLink(iconSvg: string, label: string, action: string, value?: string) {
 	const link = document.createElement("a") as HTMLAnchorElement;
 
-	link.innerHTML = labelHtml;
+	link.appendChild(parseSvg(iconSvg));
+	link.appendChild(document.createTextNode(" " + label));
 	link.href = "#";
 	link.dataset.action = action;
 
@@ -166,7 +168,8 @@ function createActionLink(labelHtml: string, action: string, value?: string) {
 function appendNavItem(
 	list: HTMLUListElement,
 	shouldRender: boolean,
-	labelHtml: string,
+	iconSvg: string,
+	label: string,
 	action: string,
 	value?: string,
 ) {
@@ -175,7 +178,7 @@ function appendNavItem(
 	}
 
 	const item = document.createElement("li") as HTMLLIElement;
-	const link = createActionLink(labelHtml, action, value);
+	const link = createActionLink(iconSvg, label, action, value);
 
 	item.appendChild(link);
 	list.appendChild(item);
@@ -362,7 +365,7 @@ async function resizeWindowToDisplay() {
 //=============================================================================
 async function listDirectories() {
 	// Clear previous directory list
-	directoryDiv.innerHTML = "";
+	directoryDiv.replaceChildren();
 	updateCurrentPathDisplay();
 
 	if (currentPlayingPath) {
@@ -377,7 +380,8 @@ async function listDirectories() {
 	appendNavItem(
 		ul,
 		path !== pathSeparator,
-		`${backIconSvg} Back`,
+		backIconSvg,
+		"Back",
 		"go-up",
 	);
 
@@ -530,7 +534,7 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 			const filled = hoveredStar !== null
 				? starNum <= hoveredStar
 				: rating !== false && starNum <= rating;
-			btn.querySelector("i")!.innerHTML = filled ? starFilledIconSvg : starEmptyIconSvg;
+			btn.querySelector("i")!.replaceChildren(parseSvg(filled ? starFilledIconSvg : starEmptyIconSvg));
 		});
 	};
 
@@ -565,7 +569,7 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 		starButton.title = `Rate ${starNumber}`;
 		starButton.setAttribute("aria-label", `Rate ${starNumber} star${starNumber === 1 ? "" : "s"}`);
 
-		starIcon.innerHTML = isFilled ? starFilledIconSvg : starEmptyIconSvg;
+		starIcon.appendChild(parseSvg(isFilled ? starFilledIconSvg : starEmptyIconSvg));
 		starButton.appendChild(starIcon);
 		starButton.addEventListener("click", async () => {
 			await rateMusic(filePath, starNumber);
@@ -595,7 +599,7 @@ async function ratingFormatter(filePath: string, cell: HTMLTableCellElement, rat
 		clearButton.dataset.filePath = filePath;
 		clearButton.title = "Clear rating";
 		clearButton.setAttribute("aria-label", "Clear rating");
-		clearIcon.innerHTML = trashCanIconSvg;
+		clearIcon.appendChild(parseSvg(trashCanIconSvg));
 		clearButton.appendChild(clearIcon);
 		clearButton.addEventListener("click", async (event) => {
 			event.preventDefault();
@@ -651,7 +655,7 @@ async function listPlaylistFiles() {
 
 	if (numericRatings.length === 0 && !includeUnrated) {
 		playlistFileCountSpan.textContent = "0";
-		playlistFilesTableBody.innerHTML = "";
+		playlistFilesTableBody.replaceChildren();
 		return;
 	}
 
@@ -661,7 +665,7 @@ async function listPlaylistFiles() {
 	);
 
 	playlistFileCountSpan.textContent = String(files.length);
-	playlistFilesTableBody.innerHTML = "";
+	playlistFilesTableBody.replaceChildren();
 
 	for (const file of files) {
 		const fileInfo = await invoke<{ pathname: string; filename: string; artist: string | null; album: string | null; rating: number | null }>(
@@ -670,7 +674,7 @@ async function listPlaylistFiles() {
 		);
 		const row = document.createElement("tr");
 		const playCell = document.createElement("td");
-		playCell.innerHTML = playIconSvg;
+		playCell.appendChild(parseSvg(playIconSvg));
 		playCell.className = "play-button";
 		playCell.dataset.action = "play-toggle";
 		playCell.dataset.filePath = file.pathname;
@@ -686,11 +690,16 @@ async function listPlaylistFiles() {
 		songCell.title = file.pathname;
 
 		if (file.rating !== null) {
-			let stars = "";
 			for (let i = 1; i <= 5; i++) {
-				stars += i <= file.rating ? starFilledIconSvg : starEmptyIconSvg;
+				if (i <= file.rating) {
+					const span = document.createElement("span");
+					span.className = "star-filled";
+					span.appendChild(parseSvg(starFilledIconSvg));
+					ratingCell.appendChild(span);
+				} else {
+					ratingCell.appendChild(parseSvg(starEmptyIconSvg));
+				}
 			}
-			ratingCell.innerHTML = stars;
 		} else {
 			ratingCell.textContent = "Unrated";
 			ratingCell.style.fontStyle = "italic";

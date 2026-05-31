@@ -149,6 +149,10 @@ body {
 	min-width: 142px;
 }
 
+.star-filled {
+	color: var(--star);
+}
+
 .star-button {
 	color: var(--star);
 	background: transparent;
