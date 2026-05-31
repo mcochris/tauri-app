@@ -221,10 +221,14 @@ body {
 }
 
 #playlistFiles table thead tr th:first-child {
-	width: 50px;
+	width: 5%;
 }
 
 #playlistFiles table tbody tr td:first-child {
+	text-align: center;
+}
+
+#playlistFiles table tbody tr td:nth-child(5) {
 	text-align: center;
 }
 
