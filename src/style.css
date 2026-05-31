@@ -183,6 +183,9 @@ body {
 	transform: scale(1.15);
 }
 
+/*===========================================================================
+	Music files table styles:
+===========================================================================*/
 #musicFiles table {
 	border-collapse: collapse;
 	width: 100%;
@@ -205,6 +208,34 @@ body {
 	margin-bottom: 32px;
 }
 
+/*===========================================================================
+	Playlist files table styles:
+===========================================================================*/
+#playlistFiles table {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+#playlistFiles th,
+#playlistFiles td {
+	padding: 8px 14px;
+	border: 1px solid var(--border);
+}
+
+#playlistFiles th {
+	text-align: left;
+	color: var(--text-h);
+	font-weight: 600;
+	background: var(--border);
+}
+
+#playlistFiles {
+	margin-bottom: 32px;
+}
+
+/*===========================================================================
+	SweetAlert2 custom styles for info button
+===========================================================================*/
 .swal2-html-container .title {
 	display: flex;
 	align-items: center;
@@ -258,6 +289,7 @@ body {
 	gap: 12px;
 	justify-content: center;
 	margin-top: 16px;
+	margin-bottom: 32px;
 }
 
 #playlistActionButtons input:hover {

@@ -34,15 +34,15 @@
 
 - add blue dot update indicator
 
-- get artist from metadata, store in DB, display in playlist
+- get artist and album from metadata, store in DB, display in playlist
 
 - implement play, pause, skip, and randomize buttons on playlist page
 
-- screen jerk on rating page when trashcan shows up
+- screen jerk on rating page when trashcan shows up (Done)
 
 - playlist page does not update when you switch to rating page, add a rating, then switch back to playlist page
 
-- style playlist page
+- style playlist page (Done)
 
 - add play/pause button to playlist table
 
