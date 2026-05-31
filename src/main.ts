@@ -662,12 +662,19 @@ async function listPlaylistFiles() {
 
 	for (const file of files) {
 		const row = document.createElement("tr");
-		const nameCell = document.createElement("td");
+		const playCell = document.createElement("td");
+		playCell.textContent = "▶️";
+		playCell.className = "play-button";
+		playCell.dataset.action = "play-toggle";
+		playCell.dataset.filePath = file.pathname;
+		const artistCell = document.createElement("td");
+		const albumCell = document.createElement("td");
+		const songCell = document.createElement("td");
 		const ratingCell = document.createElement("td");
 
 		const fileName = (file.pathname.split(pathSeparator).pop() || file.pathname).replace(/\.[^.]+$/, "");
-		nameCell.textContent = fileName;
-		nameCell.title = file.pathname;
+		songCell.textContent = fileName;
+		songCell.title = file.pathname;
 
 		if (file.rating !== null) {
 			let stars = "";
@@ -680,7 +687,10 @@ async function listPlaylistFiles() {
 			ratingCell.style.fontStyle = "italic";
 		}
 
-		row.appendChild(nameCell);
+		row.appendChild(playCell);
+		row.appendChild(artistCell);
+		row.appendChild(albumCell);
+		row.appendChild(songCell);
 		row.appendChild(ratingCell);
 		playlistFilesTableBody.appendChild(row);
 	}

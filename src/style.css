@@ -216,6 +216,18 @@ body {
 	width: 100%;
 }
 
+#playlistFiles table thead tr th {
+	text-align: center;
+}
+
+#playlistFiles table thead tr th:first-child {
+	width: 50px;
+}
+
+#playlistFiles table tbody tr td:first-child {
+	text-align: center;
+}
+
 #playlistFiles th,
 #playlistFiles td {
 	padding: 8px 14px;
