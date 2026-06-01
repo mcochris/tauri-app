@@ -20,6 +20,7 @@ const headerRatingsButton = document.getElementById("ratingsButton") as HTMLButt
 const playlistRatingButtonsDiv = document.getElementById("playlistRatingButtons") as HTMLDivElement;
 const playlistFileCountSpan = document.getElementById("playlistFileCount") as HTMLSpanElement;
 const playlistFilesTableBody = document.getElementById("playlistFilesTableBody") as HTMLTableSectionElement;
+const playlistFilesDiv = document.getElementById("playlistFiles") as HTMLDivElement;
 // const headerSpreadsheetButton = document.getElementById("spreadsheetButton") as HTMLButtonElement;
 // const headerHelpButton = document.getElementById("helpButton") as HTMLButtonElement;
 
@@ -103,7 +104,9 @@ playlistRatingButtonsDiv.addEventListener("click", async (event) => {
 			selectedPlaylistRatings.add(button.name);
 		}
 
+		playlistFilesDiv.style.display = "none"; // Hide the table while updating to prevent flicker		
 		await listPlaylistFiles();
+		playlistFilesDiv.style.display = ""; // Show the table again after updating
 	}
 });
 
