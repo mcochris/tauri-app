@@ -1,6 +1,6 @@
 - Check audio hash when loading files, can't pull up rating by filename (Done)
 
-- Add playlist function
+- Add playlist function (Done)
 
 - Add spreadsheet function
 
@@ -18,7 +18,7 @@
 
 - change name to "audiostar"? (Done)
 
-- add command line option to get DB location (Will put in UI)
+- add command line option to get DB location (Done in GUI)
 
 - test UI in dark and light modes
 
@@ -34,9 +34,9 @@
 
 - add blue dot update indicator
 
-- get artist and album from metadata, store in DB, display in playlist
+- get artist and album from metadata, store in DB, display in playlist (Done)
 
-- implement play, pause, skip, and randomize buttons on playlist page
+- implement play, pause, skip, and randomize buttons on playlist page (Done)
 
 - screen jerk on rating page when trashcan shows up (Done)
 
@@ -44,5 +44,11 @@
 
 - style playlist page (Done)
 
-- add play/pause button to playlist table
+- add play/pause button to playlist table (Done)
+
+- fix table jerk when ratings are changed
+
+- keep table on page when user scrolls table contents
+
+- auto-scroll screen to keep playing music in view
 

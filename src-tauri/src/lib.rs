@@ -8,17 +8,20 @@ use std::fs::File;
 use std::hash::Hasher;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::{MetadataOptions, StandardTagKey, Value as MetaValue};
 use symphonia::core::probe::Hint;
+use tauri::Emitter;
 use tauri::Manager;
 
 struct AudioState {
     stream: Mutex<Option<OutputStream>>,
     sink: Mutex<Option<Sink>>,
+    play_generation: Arc<AtomicU64>,
 }
 
 // OutputStream on macOS (CoreAudio) contains a non-Send callback, but access
@@ -517,23 +520,55 @@ fn get_music_files(path: &str) -> Result<Vec<PathBuf>, String> {
 
 #[tauri::command]
 //=============================================================================
-// Play a music file using the default audio output device
+// Play a music file using the default audio output device. Spawns a watcher
+// thread that emits a "music-ended" event to the frontend when playback
+// finishes naturally.
 //=============================================================================
-fn play_music_file(pathname: String, state: tauri::State<AudioState>) -> Result<(), String> {
-    // Stop anything already playing
-    if let Some(old_sink) = state.sink.lock().unwrap().take() {
-        old_sink.stop();
-    }
-
+fn play_music_file(pathname: String, state: tauri::State<AudioState>, app: tauri::AppHandle) -> Result<(), String> {
     let stream = OutputStreamBuilder::open_default_stream().map_err(|e| e.to_string())?;
     let sink = Sink::connect_new(stream.mixer());
     let file = File::open(&pathname).map_err(|e| e.to_string())?;
     let source = Decoder::try_from(BufReader::new(file)).map_err(|e| e.to_string())?;
     sink.append(source);
 
-    // Keep these alive after the command returns
+    // Atomically stop old sink, increment generation, and store the new sink.
+    // The generation guards the watcher thread so it exits when a new song starts.
+    let gen = {
+        let mut sink_guard = state.sink.lock().unwrap();
+        if let Some(old_sink) = sink_guard.take() {
+            old_sink.stop();
+        }
+        let gen = state.play_generation.fetch_add(1, Ordering::SeqCst) + 1;
+        *sink_guard = Some(sink);
+        gen
+    };
+
     *state.stream.lock().unwrap() = Some(stream);
-    *state.sink.lock().unwrap() = Some(sink);
+
+    // Spawn a thread that polls for natural playback completion and notifies
+    // the frontend so it can auto-advance to the next track.
+    let gen_tracker = Arc::clone(&state.play_generation);
+    let ended_pathname = pathname.clone();
+    std::thread::spawn(move || {
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            let audio_state = app.state::<AudioState>();
+            let sink_guard = audio_state.sink.lock().unwrap();
+            // Exit if a newer play/stop has started since this watcher was spawned.
+            if gen_tracker.load(Ordering::SeqCst) != gen {
+                break;
+            }
+            if let Some(ref sink) = *sink_guard {
+                if sink.empty() {
+                    drop(sink_guard);
+                    let _ = app.emit("music-ended", ended_pathname);
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+    });
 
     Ok(())
 }
@@ -543,10 +578,37 @@ fn play_music_file(pathname: String, state: tauri::State<AudioState>) -> Result<
 // Stop any currently playing music
 //=============================================================================
 fn stop_music_file(state: tauri::State<AudioState>) -> Result<(), String> {
-    if let Some(sink) = state.sink.lock().unwrap().take() {
+    // Increment generation inside the sink lock so the watcher thread sees the
+    // change atomically and does not emit a spurious "music-ended" event.
+    let mut sink_guard = state.sink.lock().unwrap();
+    state.play_generation.fetch_add(1, Ordering::SeqCst);
+    if let Some(sink) = sink_guard.take() {
         sink.stop();
     }
+    drop(sink_guard);
     *state.stream.lock().unwrap() = None;
+    Ok(())
+}
+
+#[tauri::command]
+//=============================================================================
+// Pause the currently playing music without clearing the playback position
+//=============================================================================
+fn pause_music_file(state: tauri::State<AudioState>) -> Result<(), String> {
+    if let Some(ref sink) = *state.sink.lock().unwrap() {
+        sink.pause();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+//=============================================================================
+// Resume a previously paused music file from where it was paused
+//=============================================================================
+fn resume_music_file(state: tauri::State<AudioState>) -> Result<(), String> {
+    if let Some(ref sink) = *state.sink.lock().unwrap() {
+        sink.play();
+    }
     Ok(())
 }
 
@@ -751,6 +813,7 @@ pub fn run() {
         .manage(AudioState {
             stream: Mutex::new(None),
             sink: Mutex::new(None),
+            play_generation: Arc::new(AtomicU64::new(0)),
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
@@ -769,6 +832,8 @@ pub fn run() {
             get_path_separator,
             play_music_file,
             stop_music_file,
+            pause_music_file,
+            resume_music_file,
             audio_file_hash,
             get_files_by_ratings,
             get_music_file_info

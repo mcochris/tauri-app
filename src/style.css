@@ -254,8 +254,16 @@ body {
 }
 
 /*===========================================================================
-	SweetAlert2 custom styles for info button
+	Flashing pause icon for paused playlist tracks
 ===========================================================================*/
+@keyframes pause-flash {
+	0%, 100% { opacity: 1; }
+	50%       { opacity: 0.15; }
+}
+
+.paused-flash svg {
+	animation: pause-flash 1.4s ease-in-out infinite;
+}
 .swal2-html-container .title {
 	display: flex;
 	align-items: center;

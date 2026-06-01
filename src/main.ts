@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import {
 	PhysicalPosition,
 	PhysicalSize,
@@ -42,6 +43,8 @@ let pathSeparator = "/";
 
 let path = "";
 let currentPlayingPath: string | null = null;
+let currentPlaylistPath: string | null = null;
+let isPlaylistPaused = false;
 let directoryToken = 0; // incremented on each navigation to cancel stale hash lookups
 const selectedPlaylistRatings = new Set<string>();
 headerRatingsButton.style.display = "none";
@@ -270,6 +273,11 @@ musicFilesDiv.addEventListener("click", async (event) => {
 
 		if (!filePath) {
 			return;
+		}
+
+		// Stop any active playlist playback before playing from the ratings page
+		if (currentPlaylistPath) {
+			clearPlaylistState();
 		}
 
 		if (currentPlayingPath === filePath) {
@@ -627,6 +635,117 @@ async function stopMusic() {
 }
 
 //=============================================================================
+// Playlist playback helpers
+//=============================================================================
+function getPlaylistPlayCell(filePath: string): HTMLElement | null {
+	return playlistFilesTableBody.querySelector(`[data-file-path="${CSS.escape(filePath)}"]`);
+}
+
+function setPlaylistCellIcon(cell: HTMLElement, svgString: string) {
+	cell.classList.remove("paused-flash");
+	cell.replaceChildren(parseSvg(svgString));
+}
+
+function setPlaylistCellPaused(cell: HTMLElement) {
+	cell.replaceChildren(parseSvg(pauseIconSvg));
+	cell.classList.add("paused-flash");
+}
+
+function resetPlaylistTrackIcon() {
+	if (currentPlaylistPath) {
+		const cell = getPlaylistPlayCell(currentPlaylistPath);
+		if (cell) setPlaylistCellIcon(cell, playIconSvg);
+	}
+}
+
+function clearPlaylistState() {
+	resetPlaylistTrackIcon();
+	currentPlaylistPath = null;
+	isPlaylistPaused = false;
+}
+
+//=============================================================================
+// Click handler for the playlist play/pause column
+//=============================================================================
+playlistFilesTableBody.addEventListener("click", async (event) => {
+	const target = event.target as HTMLElement;
+	const playCell = target.closest("[data-action='play-toggle']") as HTMLElement | null;
+
+	if (!playCell || !playlistFilesTableBody.contains(playCell)) return;
+
+	event.preventDefault();
+
+	const filePath = playCell.dataset.filePath;
+	if (!filePath) return;
+
+	if (currentPlaylistPath === filePath) {
+		if (isPlaylistPaused) {
+			// Resume from the paused position — remove flash and show solid pause icon
+			await invoke("resume_music_file");
+			isPlaylistPaused = false;
+			setPlaylistCellIcon(playCell, pauseIconSvg);
+		} else {
+			// Pause the currently playing track — show flashing pause icon
+			await invoke("pause_music_file");
+			isPlaylistPaused = true;
+			setPlaylistCellPaused(playCell);
+		}
+	} else {
+		// Switch to a different track
+		clearPlaylistState();
+
+		// Also clear ratings-page playback state since the backend has one sink
+		document.querySelectorAll(".play-button.playing").forEach((el) => el.classList.remove("playing"));
+		currentPlayingPath = null;
+
+		await playMusic(filePath);
+		currentPlaylistPath = filePath;
+		isPlaylistPaused = false;
+		setPlaylistCellIcon(playCell, pauseIconSvg);
+	}
+});
+
+//=============================================================================
+// Auto-advance to the next playlist track when the current one ends
+//=============================================================================
+listen<string>("music-ended", async (event) => {
+	const endedPath = event.payload;
+
+	// Ignore stale events (e.g. from the ratings page or after a stop)
+	if (endedPath !== currentPlaylistPath || isPlaylistPaused) return;
+
+	const rows = Array.from(playlistFilesTableBody.querySelectorAll("tr"));
+	const currentIndex = rows.findIndex((row) => {
+		const cell = row.querySelector("[data-action='play-toggle']") as HTMLElement | null;
+		return cell?.dataset.filePath === currentPlaylistPath;
+	});
+
+	if (currentIndex === -1) return;
+
+	// Reset the finished track's icon back to play
+	const finishedRow = rows[currentIndex];
+	const finishedCell = finishedRow?.querySelector("[data-action='play-toggle']") as HTMLElement | null;
+	if (finishedCell) setPlaylistCellIcon(finishedCell, playIconSvg);
+
+	// Wrap around to the first track after the last
+	const nextIndex = (currentIndex + 1) % rows.length;
+	const nextRow = rows[nextIndex];
+	const nextCell = nextRow?.querySelector("[data-action='play-toggle']") as HTMLElement | null;
+	const nextPath = nextCell?.dataset.filePath;
+
+	if (!nextPath || !nextCell) {
+		currentPlaylistPath = null;
+		isPlaylistPaused = false;
+		return;
+	}
+
+	currentPlaylistPath = nextPath;
+	isPlaylistPaused = false;
+	await playMusic(nextPath);
+	setPlaylistCellIcon(nextCell, pauseIconSvg);
+}).catch(console.error);
+
+//=============================================================================
 // Rate music and clear rating functions
 //=============================================================================
 async function rateMusic(pathname: string, rating: number) {
@@ -654,6 +773,11 @@ async function listPlaylistFiles() {
 	}
 
 	if (numericRatings.length === 0 && !includeUnrated) {
+		// Stop playback before clearing the table
+		if (currentPlaylistPath) {
+			clearPlaylistState();
+			await stopMusic();
+		}
 		playlistFileCountSpan.textContent = "0";
 		playlistFilesTableBody.replaceChildren();
 		return;
@@ -663,6 +787,12 @@ async function listPlaylistFiles() {
 		"get_files_by_ratings",
 		{ ratings: numericRatings, include_unrated: includeUnrated },
 	);
+
+	// Stop any current playlist playback before rebuilding the table
+	if (currentPlaylistPath) {
+		clearPlaylistState();
+		await stopMusic();
+	}
 
 	playlistFileCountSpan.textContent = String(files.length);
 	playlistFilesTableBody.replaceChildren();
